@@ -1,10 +1,11 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { query } from "./db/pool";
 
 import { accountsRouter } from "@accounts/route";
-import { journalsRouter } from "@journals/route";
-import { journalLinesRouter } from "@journal-lines/route";
+// import { journalsRouter } from "@journals/route";
+// import { journalLinesRouter } from "@journal-lines/route";
 import { errorHandler } from "@middleware/error/error-handler";
 
 const app = express();
@@ -21,13 +22,31 @@ if (NODE_ENV !== "production") {
 }
 
 app.use("/api/accounts", accountsRouter);
-app.use("/api/journals", journalsRouter);
-app.use("/api/journal-lines", journalLinesRouter);
+// app.use("/api/journals", journalsRouter);
+// app.use("/api/journal-lines", journalLinesRouter);
 
 // pcg-reference is a single, standalone lookup — not a full CRUD resource,
 // so it's handled inline here rather than given its own feature folder.
-app.get("/api/pcg-reference/:code", (_req, res) => {
-  res.status(501).json({ error: "Not implemented yet" });
+app.get("/api/pcg-reference/:code", async (req, res, next) => {
+  try {
+    const code = req.params.code;
+
+    const rows = await query<{ id: string; name: string }>(
+      `SELECT id, name FROM pcg_reference WHERE id = $1`,
+      [code]
+    );
+
+    const match = rows[0];
+
+    if (!match) {
+      res.status(404).json({ error: `No PCGE reference entry found for code "${code}"` });
+      return;
+    }
+
+    res.json(match);
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.use(errorHandler);
