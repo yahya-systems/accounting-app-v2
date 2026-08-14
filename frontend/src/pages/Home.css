@@ -1,0 +1,32 @@
+.home {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+.home-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--gray-300);
+  padding: 48px 24px;
+  overflow-y: auto;
+}
+
+.home-main {
+  flex: 1;
+  min-width: 0;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-table-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-item-button.selected {
+  background: var(--gray-100);
+}

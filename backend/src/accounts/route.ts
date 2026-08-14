@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { listAccounts } from "@accounts/service/list-accounts";
 import { createAccount } from "./service/create-account";
-import { updateAccount } from "./service/uptime-account";
+import { updateAccount } from "./service/update-accounts";
 import { getAccount } from "./service/get-account";
 import { getAccountJournalLines } from "./service/get-account-journal-lines";
 import { getAccountBalance } from "./service/get-account-balance";
