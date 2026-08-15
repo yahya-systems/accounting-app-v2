@@ -1,0 +1,86 @@
+.edit-account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-account-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-account-form .form-field label {
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.edit-account-form .form-field input {
+  padding: 8px;
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.edit-account-form .form-field input:focus {
+  outline: none;
+  border-color: var(--gray-900);
+}
+
+.edit-account-form .form-field input:disabled {
+  background: var(--gray-100);
+  color: var(--gray-500);
+}
+
+.edit-account-form .field-error {
+  color: var(--gray-700);
+  font-size: 12px;
+  margin: 0;
+}
+
+.edit-account-form .metadata-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.edit-account-form .metadata-header .button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.edit-account-form .metadata-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.edit-account-form .metadata-row input {
+  flex: 1;
+}
+
+.edit-account-form .metadata-remove {
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--gray-500);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.edit-account-form .metadata-remove:hover {
+  color: var(--gray-900);
+}
+
+.edit-account-form .form-error {
+  margin: 0;
+}
+
+.edit-account-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}

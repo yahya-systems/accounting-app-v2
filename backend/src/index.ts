@@ -31,12 +31,24 @@ app.get("/api/pcg-reference/:code", async (req, res, next) => {
   try {
     const code = req.params.code;
 
-    const rows = await query<{ id: string; name: string }>(
-      `SELECT id, name FROM pcg_reference WHERE id = $1`,
-      [code]
-    );
+    // Try the exact code first, then progressively drop one digit from the
+    // right until we hit a match (e.g. "1111234567" -> "111123456" -> ... -> "1").
+    let match: { id: string; name: string } | undefined;
+    let candidate = code;
 
-    const match = rows[0];
+    while (candidate.length > 0) {
+      const rows = await query<{ id: string; name: string }>(
+        `SELECT id, name FROM pcg_reference WHERE id = $1`,
+        [candidate]
+      );
+
+      if (rows[0]) {
+        match = rows[0];
+        break;
+      }
+
+      candidate = candidate.slice(0, -1);
+    }
 
     if (!match) {
       res.status(404).json({ error: `No PCGE reference entry found for code "${code}"` });

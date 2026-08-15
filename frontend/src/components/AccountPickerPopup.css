@@ -1,0 +1,53 @@
+.account-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 60vh;
+}
+
+.account-picker-search {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.account-picker-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.account-picker-search-field label {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.account-picker-search-field input {
+  padding: 6px 8px;
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--gray-900);
+  background: var(--white);
+  width: 100%;
+}
+
+.account-picker-create {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.account-picker-table-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}

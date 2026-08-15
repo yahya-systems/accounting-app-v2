@@ -6,6 +6,7 @@ type UpdateAccountInput = {
   name?: string | undefined;
   description?: string | null | undefined;
   metadata?: Record<string, unknown> | undefined;
+  is_active?: boolean | undefined;
 };
 
 export async function updateAccount(
@@ -49,13 +50,15 @@ export async function updateAccount(
     `UPDATE accounts
      SET name = $1,
          description = $2,
-         metadata = $3
-     WHERE id = $4
+         metadata = $3,
+         is_active = $4
+     WHERE id = $5
      RETURNING id, name, description, is_active, created_at, metadata`,
     [
       input.name ?? existing.name,
       input.description !== undefined ? input.description : existing.description,
       JSON.stringify(mergedMetadata),
+      input.is_active !== undefined ? input.is_active : existing.is_active,
       id,
     ]
   );

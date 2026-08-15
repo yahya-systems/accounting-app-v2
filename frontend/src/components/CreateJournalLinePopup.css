@@ -1,0 +1,82 @@
+.create-journal-line-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-journal-line-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.create-journal-line-form .form-field label {
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.create-journal-line-form .form-field input,
+.create-journal-line-form .form-field select {
+  padding: 8px;
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--white);
+}
+
+.create-journal-line-form .form-field input:focus,
+.create-journal-line-form .form-field select:focus {
+  outline: none;
+  border-color: var(--gray-900);
+}
+
+.create-journal-line-form .field-error {
+  color: var(--gray-700);
+  font-size: 12px;
+  margin: 0;
+}
+
+.create-journal-line-form .form-field-with-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-journal-line-form .form-field-with-hint input {
+  flex: 1;
+}
+
+.create-journal-line-form .form-field-hint {
+  font-size: 13px;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.create-journal-line-form .form-field-hint-error {
+  color: var(--gray-700);
+}
+
+.create-journal-line-form .type-toggle {
+  display: flex;
+  gap: 16px;
+}
+
+.create-journal-line-form .type-toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--gray-900);
+  cursor: pointer;
+}
+
+.create-journal-line-form .form-error {
+  margin: 0;
+}
+
+.create-journal-line-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}

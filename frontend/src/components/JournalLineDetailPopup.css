@@ -1,0 +1,87 @@
+.journal-line-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+.journal-line-detail-row {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.journal-line-detail-row dt {
+  width: 90px;
+  flex-shrink: 0;
+  color: var(--gray-500);
+}
+
+.journal-line-detail-row dd {
+  margin: 0;
+  color: var(--gray-900);
+}
+
+.journal-line-detail-hint {
+  color: var(--gray-500);
+}
+
+.journal-line-detail .form-actions,
+.journal-line-detail-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.journal-line-detail-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.journal-line-detail-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.journal-line-detail-form .form-field label {
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.journal-line-detail-form .form-field input {
+  padding: 8px;
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.journal-line-detail-form .form-field input:focus {
+  outline: none;
+  border-color: var(--gray-900);
+}
+
+.journal-line-detail-form .field-error {
+  color: var(--gray-700);
+  font-size: 12px;
+  margin: 0;
+}
+
+.journal-line-detail-form .type-toggle {
+  display: flex;
+  gap: 16px;
+}
+
+.journal-line-detail-form .type-toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--gray-900);
+  cursor: pointer;
+}
+
+.journal-line-detail-form .form-error {
+  margin: 0;
+}

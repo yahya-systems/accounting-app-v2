@@ -27,6 +27,7 @@ export const updateAccountBodySchema = z.object({
   name: z.string().trim().min(1, "name cannot be empty").optional(),
   description: z.string().trim().min(1).nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  is_active: z.boolean().optional(),
 });
 
 export const getAccountJournalLinesQuerySchema = z.object({
