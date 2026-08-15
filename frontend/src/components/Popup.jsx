@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import './Popup.css'
 
 // Shared stack of currently-open popups' close handlers, most-recent last.
@@ -39,7 +40,7 @@ export default function Popup({ open, onClose, title, children }) {
     }
   }
 
-  return (
+  return createPortal(
     <div className="popup-overlay" onMouseDown={handleOverlayClick}>
       <div className="popup-panel" ref={panelRef} role="dialog" aria-modal="true">
         {(title || onClose) && (
@@ -54,6 +55,7 @@ export default function Popup({ open, onClose, title, children }) {
         )}
         <div className="popup-body">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
