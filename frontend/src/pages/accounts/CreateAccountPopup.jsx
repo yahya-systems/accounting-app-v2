@@ -159,6 +159,7 @@ export default function CreateAccountPopup({ onClose, onCreated }) {
             value={form.pcg_code}
             onChange={(e) => updateField('pcg_code', e.target.value)}
             placeholder="4481000000"
+            maxLength={10}
           />
           {pcgLabel && <span className="form-field-hint">{pcgLabel}</span>}
         </div>

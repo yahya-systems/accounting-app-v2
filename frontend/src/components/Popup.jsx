@@ -35,9 +35,13 @@ export default function Popup({ open, onClose, title, children }) {
   if (!open) return null
 
   function handleOverlayClick(e) {
-    if (panelRef.current && !panelRef.current.contains(e.target)) {
-      onClose?.()
-    }
+    if (!panelRef.current || panelRef.current.contains(e.target)) return
+    // Popups now portal to document.body, so nested popups are DOM siblings,
+    // not descendants — an outside click on this overlay may actually be a
+    // click meant for a popup stacked on top of this one (e.g. opening it).
+    // Only the topmost popup in the stack should react to an outside click.
+    const topmost = openPopupStack[openPopupStack.length - 1]
+    if (topmost === onClose) onClose?.()
   }
 
   return createPortal(
