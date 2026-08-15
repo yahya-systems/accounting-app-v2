@@ -1,6 +1,6 @@
 # Frontend Project Overview (current)
 
-**Status: v1 complete.** Full CRUD across accounts, journals, and journal lines; every list has filtering; every entry is editable via a universal popup; account/journal creation, editing, and deactivation all wired; a global cross-journal ledger view exists. Remaining gaps are known and intentional (see "Not implemented" below), not oversights.
+**Status: complete rewrite of a previous version, this codebase is the current one.** Full CRUD across accounts, journals, and journal lines; every list has filtering; every entry is editable via a universal popup; account/journal creation, editing, and deactivation all wired; a global cross-journal ledger view exists. Remaining gaps are known and intentional (see "Not implemented" below), not oversights.
 
 React 19 + Vite, plain JS, folder-per-route pages under `src/pages/`. French UI throughout.
 
