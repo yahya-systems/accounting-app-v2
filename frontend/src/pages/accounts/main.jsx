@@ -9,7 +9,7 @@ import CreateAccountPopup from './CreateAccountPopup'
 import './Accounts.css'
 
 const FILTER_SCHEMA = [
-  { key: 'id', label: 'Identifiant', type: 'text', param: 'id', placeholder: '4481' },
+  { key: 'id', label: 'Identifiant', type: 'text', param: 'id', placeholder: '4481', maxLength: 10 },
   { key: 'name', label: 'Nom', type: 'text', param: 'name', placeholder: 'Fournisseurs' },
   {
     key: 'isActive',

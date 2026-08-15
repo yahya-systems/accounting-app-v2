@@ -211,6 +211,7 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
             value={form.account_id}
             onChange={(e) => updateField('account_id', e.target.value)}
             placeholder="4481000000"
+            maxLength={10}
           />
           <button type="button" className="button" onClick={() => setIsPickerOpen(true)}>
             Choisir…

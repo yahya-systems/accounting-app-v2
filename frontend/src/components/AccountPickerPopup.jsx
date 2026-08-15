@@ -66,6 +66,7 @@ export default function AccountPickerPopup({ onSelect, onClose }) {
             value={search.id}
             onChange={(e) => setSearch((s) => ({ ...s, id: e.target.value }))}
             placeholder="4481"
+            maxLength={10}
           />
         </div>
         <div className="account-picker-search-field">

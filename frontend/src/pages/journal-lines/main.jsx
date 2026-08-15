@@ -12,7 +12,7 @@ import './JournalLines.css'
 const FILTER_SCHEMA = [
   { key: 'from', label: 'Du', type: 'date', param: 'from' },
   { key: 'to', label: 'Au', type: 'date', param: 'to' },
-  { key: 'accountId', label: 'Compte (préfixe)', type: 'text', param: 'account_id', placeholder: '4481' },
+  { key: 'accountId', label: 'Compte (préfixe)', type: 'text', param: 'account_id', placeholder: '4481', maxLength: 10 },
   {
     key: 'type',
     label: 'Type',

@@ -48,6 +48,7 @@ function FilterField({ field, value, onChange }) {
         value={value}
         placeholder={field.placeholder}
         onChange={(e) => onChange(e.target.value)}
+        maxLength={field.maxLength}
       />
     </div>
   )
