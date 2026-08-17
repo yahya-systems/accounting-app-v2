@@ -33,8 +33,9 @@
 }
 
 .edit-account-form .field-error {
-  color: var(--gray-700);
+  color: var(--red-600);
   font-size: 12px;
+  font-weight: 600;
   margin: 0;
 }
 

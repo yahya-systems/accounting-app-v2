@@ -41,8 +41,9 @@
 }
 
 .create-journal-line-form .field-error {
-  color: var(--gray-700);
+  color: var(--red-600);
   font-size: 12px;
+  font-weight: 600;
   margin: 0;
 }
 
@@ -63,7 +64,8 @@
 }
 
 .create-journal-line-form .form-field-hint-error {
-  color: var(--gray-700);
+  color: var(--red-600);
+  font-weight: 600;
 }
 
 .create-journal-line-form .type-toggle {
