@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { updateJournal } from '../../../api/client'
+import { JOURNAL_TYPES } from '../../home/CreateJournalPopup'
 import './EditJournalPopup.css'
 
 function fieldFromPath(path) {
@@ -17,6 +18,7 @@ export default function EditJournalPopup({ journal, onClose, onUpdated }) {
   const [form, setForm] = useState({
     name: journal.name ?? '',
     description: journal.description ?? '',
+    type: journal.type ?? 'Autre',
   })
 
   const [fieldErrors, setFieldErrors] = useState({})
@@ -45,6 +47,7 @@ export default function EditJournalPopup({ journal, onClose, onUpdated }) {
       await updateJournal(journal.id, {
         name: form.name.trim(),
         description: form.description.trim(),
+        type: form.type,
       })
       onUpdated?.()
       onClose?.()
@@ -54,7 +57,7 @@ export default function EditJournalPopup({ journal, onClose, onUpdated }) {
         const generalMessages = []
         for (const issue of err.details) {
           const field = fieldFromPath(issue.path)
-          if (field === 'name' || field === 'description') {
+          if (field === 'name' || field === 'description' || field === 'type') {
             nextFieldErrors[field] = issue.message
           } else {
             generalMessages.push(issue.message)
@@ -92,6 +95,22 @@ export default function EditJournalPopup({ journal, onClose, onUpdated }) {
           onChange={(e) => updateField('description', e.target.value)}
         />
         {fieldErrors.description && <p className="field-error">{fieldErrors.description}</p>}
+      </div>
+
+      <div className="form-field">
+        <label htmlFor="ej-type">Type</label>
+        <select
+          id="ej-type"
+          value={form.type}
+          onChange={(e) => updateField('type', e.target.value)}
+        >
+          {JOURNAL_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        {fieldErrors.type && <p className="field-error">{fieldErrors.type}</p>}
       </div>
 
       {formError && <p className="error form-error">{formError}</p>}

@@ -17,6 +17,11 @@ export async function listJournals(
     conditions.push(`description ILIKE $${params.length}`);
   }
 
+  if (filters.type !== undefined) {
+    params.push(filters.type);
+    conditions.push(`type = $${params.length}`);
+  }
+
   if (filters.is_active !== undefined) {
     params.push(filters.is_active);
     conditions.push(`is_active = $${params.length}`);
@@ -36,7 +41,7 @@ export async function listJournals(
     conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   return query<Journal>(
-    `SELECT id, name, description, is_active, created_at
+    `SELECT id, name, description, type, is_active, created_at
      FROM journals
      ${whereClause}
      ORDER BY id`,

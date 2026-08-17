@@ -1,8 +1,12 @@
 import { z } from "zod";
+import { JOURNAL_TYPES } from "@journals/types";
+
+export const journalTypeSchema = z.enum(JOURNAL_TYPES);
 
 export const listJournalsQuerySchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
+  type: journalTypeSchema.optional(),
   is_active: z
     .enum(["true", "false"])
     .optional()
@@ -14,11 +18,13 @@ export const listJournalsQuerySchema = z.object({
 export const createJournalBodySchema = z.object({
   name: z.string().trim().min(1, "name cannot be empty"),
   description: z.string().trim().min(1).nullable().optional().transform((v) => v ?? null),
+  type: journalTypeSchema,
 });
 
 export const updateJournalSchema = z.object({
   name: z.string().min(1, "name cannot be empty").optional(),
   description: z.string().nullable().optional(),
+  type: journalTypeSchema.optional(),
   is_active: z.boolean().optional(),
 });
 

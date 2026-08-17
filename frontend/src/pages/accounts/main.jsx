@@ -134,8 +134,14 @@ export default function Accounts() {
       <header className="page-header">
         <h1>Comptes</h1>
         <div className="accounts-header-actions">
-          <button type="button" className="button" onClick={handleCreateAccount}>
-            Créer un compte
+          <button
+            type="button"
+            className="button icon-button"
+            onClick={handleCreateAccount}
+            aria-label="Créer un compte"
+            title="Créer un compte"
+          >
+            +
           </button>
           <Link to="/" className="button">
             Journaux

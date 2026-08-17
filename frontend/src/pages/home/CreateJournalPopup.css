@@ -15,14 +15,16 @@
   color: var(--gray-700);
 }
 
-.create-journal-form .form-field input {
+.create-journal-form .form-field input,
+.create-journal-form .form-field select {
   padding: 8px;
   border: 1px solid var(--gray-300);
   font-size: 14px;
   font-family: inherit;
 }
 
-.create-journal-form .form-field input:focus {
+.create-journal-form .form-field input:focus,
+.create-journal-form .form-field select:focus {
   outline: none;
   border-color: var(--gray-900);
 }

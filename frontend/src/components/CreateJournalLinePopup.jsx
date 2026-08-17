@@ -22,11 +22,35 @@ function makeEmptyForm(journalId) {
   }
 }
 
-// Concatenates the 4 description fields into the single `description` string
-// the API expects: "[PIECE] — [LIBELE] — [NATURE D'ACHAT] — [CODE TVA]".
-function buildDescription(form) {
-  return [form.piece, form.libele, form.nature_achat, form.code_tva]
+const ACHAT_VENTE_TYPES = ['Achats', 'Ventes']
+const BANQUE_CAISSE_TYPES = ['Banque', 'Caisse']
+
+function isAchatVente(journalType) {
+  return ACHAT_VENTE_TYPES.includes(journalType)
+}
+
+// Achats/Ventes Libellé auto-fill rule: a complete 10-digit account id
+// (Partie or Contre-partie, checked independently) prefixed by 3 or 4.
+function isAchatVenteAutofillCode(accountId) {
+  return /^[34]\d{9}$/.test(accountId.trim())
+}
+
+function isBanqueCaisse(journalType) {
+  return BANQUE_CAISSE_TYPES.includes(journalType)
+}
+
+// Concatenates the description fields into the single `description` string
+// the API expects. For Achats/Ventes journals: "[PIECE] — [LIBELE] — [NATURE
+// D'ACHAT] — [CODE TVA]"; for other journal types, only Libellé is shown so
+// the description is just "[LIBELE]". Empty segments are dropped rather than
+// leaving a bare dash, so partially-filled forms don't produce " — Foo —  — ".
+function buildDescription(form, journalType) {
+  const parts = isAchatVente(journalType)
+    ? [form.piece, form.libele, form.nature_achat, form.code_tva]
+    : [form.libele]
+  return parts
     .map((part) => part.trim())
+    .filter((part) => part.length > 0)
     .join(' — ')
 }
 
@@ -136,15 +160,23 @@ function useAccountLookup(accountId) {
 //   one request — one for each account, same date/description, one debit and one credit
 //   (the amount is shared; Type picks which side "Partie" gets, "Contre-partie" gets the
 //   opposite). The debit line is always sent first in the array.
-export default function CreateJournalLinePopup({ journalId, onClose, onCreated }) {
+export default function CreateJournalLinePopup({ journalId, journalType, onClose, onCreated }) {
   const requireJournalSelect = !journalId
 
   const [form, setForm] = useState(() => makeEmptyForm(journalId))
+  // When the journal is fixed via props, its type comes straight from
+  // `journalType`. When the user picks a journal from the dropdown instead,
+  // we derive the type from whichever journal in the fetched list matches
+  // the currently selected journal_id.
+  const [journals, setJournals] = useState([])
+  const selectedJournalType = requireJournalSelect
+    ? journals.find((j) => String(j.id) === form.journal_id)?.type
+    : journalType
+  const achatVente = isAchatVente(selectedJournalType)
+  const banqueCaisse = isBanqueCaisse(selectedJournalType)
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-
-  const [journals, setJournals] = useState([])
 
   const [accountLookupStatus, accountName, setAccountLookupStatus, setAccountName, accountLookupSeq] =
     useAccountLookup(form.account_id)
@@ -161,13 +193,48 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
 
   const isDoubleEntry = form.counter_account_id.trim().length > 0
 
-  // Auto-fill Libellé with the account name once the typed account_id
-  // resolves via live lookup — only if Libellé is still empty, so it never
-  // clobbers something the user already typed.
+  // Achats/Ventes: Libellé auto-fills from whichever of Partie/Contre-partie
+  // resolves to a complete 10-digit id prefixed by 3 or 4, checked
+  // independently per field. Only fires if the *other* account field is
+  // also filled, and never overwrites a non-empty Libellé. This is the
+  // entire Achats/Ventes autofill rule — no fallback to Partie's name
+  // otherwise (unlike every other journal type, which doesn't autofill
+  // Libellé at all in this component, or Banque/Caisse, handled separately
+  // below).
   useEffect(() => {
+    if (!achatVente) return
+    if (!isAchatVenteAutofillCode(form.account_id)) return
+    if (!form.counter_account_id.trim()) return
     if (accountLookupStatus !== 'found' || !accountName) return
     setForm((f) => (f.libele.trim() ? f : { ...f, libele: accountName }))
-  }, [accountLookupStatus, accountName])
+  }, [achatVente, form.account_id, form.counter_account_id, accountLookupStatus, accountName])
+
+  useEffect(() => {
+    if (!achatVente) return
+    if (!isAchatVenteAutofillCode(form.counter_account_id)) return
+    if (!form.account_id.trim()) return
+    if (counterAccountLookupStatus !== 'found' || !counterAccountName) return
+    setForm((f) => (f.libele.trim() ? f : { ...f, libele: counterAccountName }))
+  }, [achatVente, form.account_id, form.counter_account_id, counterAccountLookupStatus, counterAccountName])
+
+  // Non-Achats/Ventes, non-Banque/Caisse journals: Libellé auto-fills from
+  // Partie's account name once it resolves via live lookup — only if
+  // Libellé is still empty. (Achats/Ventes has its own rule above;
+  // Banque/Caisse has its own rule below.)
+  useEffect(() => {
+    if (banqueCaisse || achatVente) return
+    if (accountLookupStatus !== 'found' || !accountName) return
+    setForm((f) => (f.libele.trim() ? f : { ...f, libele: accountName }))
+  }, [banqueCaisse, achatVente, accountLookupStatus, accountName])
+
+  // Banque/Caisse journals: auto-fill Libellé from the Contre-partie account
+  // name instead of Partie's, once it resolves via live lookup — only if
+  // Libellé is still empty.
+  useEffect(() => {
+    if (!banqueCaisse) return
+    if (counterAccountLookupStatus !== 'found' || !counterAccountName) return
+    setForm((f) => (f.libele.trim() ? f : { ...f, libele: counterAccountName }))
+  }, [banqueCaisse, counterAccountLookupStatus, counterAccountName])
 
   useEffect(() => {
     if (!requireJournalSelect) return
@@ -195,18 +262,34 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
   function handleAccountSelected(account) {
     // Skip the round-trip lookup: we already have the full account from the picker.
     accountLookupSeq.current += 1
-    setForm((f) => ({
-      ...f,
-      account_id: account.id,
-      libele: f.libele.trim() ? f.libele : account.name,
-    }))
+    setForm((f) => {
+      const shouldAutofill = achatVente
+        ? isAchatVenteAutofillCode(account.id) && f.counter_account_id.trim()
+        : !banqueCaisse
+      return {
+        ...f,
+        account_id: account.id,
+        // Banque/Caisse autofill Libellé from Contre-partie instead — see handleCounterAccountSelected.
+        // Achats/Ventes follow the 3/4-prefix rule (see the effects above).
+        libele: shouldAutofill && !f.libele.trim() ? account.name : f.libele,
+      }
+    })
     setAccountName(account.name)
     setAccountLookupStatus('found')
   }
 
   function handleCounterAccountSelected(account) {
     counterAccountLookupSeq.current += 1
-    setForm((f) => ({ ...f, counter_account_id: account.id }))
+    setForm((f) => {
+      const shouldAutofill = achatVente
+        ? isAchatVenteAutofillCode(account.id) && f.account_id.trim()
+        : banqueCaisse
+      return {
+        ...f,
+        counter_account_id: account.id,
+        libele: shouldAutofill && !f.libele.trim() ? account.name : f.libele,
+      }
+    })
     setCounterAccountName(account.name)
     setCounterAccountLookupStatus('found')
   }
@@ -228,7 +311,7 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
     try {
       const journal_id = Number(requireJournalSelect ? form.journal_id : journalId)
       const date = form.date
-      const description = buildDescription(form)
+      const description = buildDescription(form, selectedJournalType)
       const amount = Number(form.amount)
 
       const partieLine = {
@@ -304,7 +387,7 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
       )}
 
       <div className="form-field">
-        <label htmlFor="cjl-account-id">Partie</label>
+        <label htmlFor="cjl-account-id">Compte</label>
         <div className="form-field-with-hint">
           <input
             id="cjl-account-id"
@@ -398,17 +481,54 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
         {fieldErrors.date && <p className="field-error">{fieldErrors.date}</p>}
       </div>
 
-      <div className="form-field-row">
-        <div className="form-field">
-          <label htmlFor="cjl-piece">Pièce</label>
-          <input
-            id="cjl-piece"
-            type="text"
-            value={form.piece}
-            onChange={(e) => updateField('piece', e.target.value)}
-          />
-          {fieldErrors.piece && <p className="field-error">{fieldErrors.piece}</p>}
-        </div>
+      {achatVente ? (
+        <>
+          <div className="form-field-row">
+            <div className="form-field">
+              <label htmlFor="cjl-piece">Pièce</label>
+              <input
+                id="cjl-piece"
+                type="text"
+                value={form.piece}
+                onChange={(e) => updateField('piece', e.target.value)}
+              />
+              {fieldErrors.piece && <p className="field-error">{fieldErrors.piece}</p>}
+            </div>
+            <div className="form-field">
+              <label htmlFor="cjl-libele">Libellé</label>
+              <input
+                id="cjl-libele"
+                type="text"
+                value={form.libele}
+                onChange={(e) => updateField('libele', e.target.value)}
+              />
+              {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
+            </div>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="cjl-nature-achat">Nature d'achat</label>
+            <input
+              id="cjl-nature-achat"
+              type="text"
+              value={form.nature_achat}
+              onChange={(e) => updateField('nature_achat', e.target.value)}
+            />
+            {fieldErrors.nature_achat && <p className="field-error">{fieldErrors.nature_achat}</p>}
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="cjl-code-tva">Code TVA</label>
+            <input
+              id="cjl-code-tva"
+              type="text"
+              value={form.code_tva}
+              onChange={(e) => updateField('code_tva', e.target.value)}
+            />
+            {fieldErrors.code_tva && <p className="field-error">{fieldErrors.code_tva}</p>}
+          </div>
+        </>
+      ) : (
         <div className="form-field">
           <label htmlFor="cjl-libele">Libellé</label>
           <input
@@ -419,32 +539,10 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
           />
           {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
         </div>
-      </div>
+      )}
 
       <div className="form-field">
-        <label htmlFor="cjl-nature-achat">Nature d'achat</label>
-        <input
-          id="cjl-nature-achat"
-          type="text"
-          value={form.nature_achat}
-          onChange={(e) => updateField('nature_achat', e.target.value)}
-        />
-        {fieldErrors.nature_achat && <p className="field-error">{fieldErrors.nature_achat}</p>}
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="cjl-code-tva">Code TVA</label>
-        <input
-          id="cjl-code-tva"
-          type="text"
-          value={form.code_tva}
-          onChange={(e) => updateField('code_tva', e.target.value)}
-        />
-        {fieldErrors.code_tva && <p className="field-error">{fieldErrors.code_tva}</p>}
-      </div>
-
-      <div className="form-field">
-        <label>Type{isDoubleEntry ? ' (Partie)' : ''}</label>
+        <label>Type{isDoubleEntry ? ' (Compte)' : ''}</label>
         <div className="type-toggle">
           <label className="type-toggle-option">
             <input

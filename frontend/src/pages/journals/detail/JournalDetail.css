@@ -76,6 +76,8 @@
   margin-bottom: 24px;
 }
 
+/* .icon-button base rule (32x32, centered) now lives globally in src/index.css */
+
 .journal-detail-table-container {
   flex: 1;
   min-height: 0;

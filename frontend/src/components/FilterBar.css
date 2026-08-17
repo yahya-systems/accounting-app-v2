@@ -31,3 +31,25 @@
   display: flex;
   gap: 8px;
 }
+
+.filter-bar-collapsed {
+  align-items: center;
+}
+
+.filter-bar-toggle {
+  position: relative;
+}
+
+.filter-bar-toggle.active {
+  padding-right: 24px;
+}
+
+.filter-bar-active-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gray-900);
+}

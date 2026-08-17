@@ -13,10 +13,11 @@ Source: api-specification.md. All endpoints prefixed `/api`, JSON bodies. Errors
 
 ## Journals
 - `id` is a plain **number**.
-- `GET /api/journals` — filters: `name`, `description` (substring), `is_active`, `created_after`, `created_before`.
-- `POST /api/journals` — body `{name, description?}`. `name` unique (409).
+- `type` is a **required** field (added after initial spec — verified against `backend/src/journals/schema.ts`/`types.ts`), a fixed enum `JOURNAL_TYPES`: `"Caisse" | "Banque" | "Achats" | "Ventes" | "Opérations Diverses" | "Autre"`. No `.optional()` on `POST`'s `type`, unlike `description`.
+- `GET /api/journals` — filters: `name`, `description` (substring), `type` (exact match against the enum), `is_active`, `created_after`, `created_before`.
+- `POST /api/journals` — body `{name, description?, type}`. `type` is **required**. `name` unique (409).
 - `GET /api/journals/:id` — 400 if `:id` not valid positive int, 404 if valid but missing.
-- `PATCH /api/journals/:id` — optional `{name, description, is_active}`. Same id validation.
+- `PATCH /api/journals/:id` — optional `{name, description, type, is_active}`. Same id validation.
 - `GET /api/journals/:id/journal-lines` — filters: `from`, `to`, `account_id` (**prefix** match), `type`, `description`. Returns lines with embedded `account` (not `journal`).
 - `GET /api/journals/:id/balance` — **this endpoint DOES exist** (previously misdocumented here as absent — verified against `backend/src/journals/service/get-journal-balance.ts` and already wired into `JournalDetail.jsx`). Filters `from`/`to`. Returns `{total_debit, total_credit, solde}` — note the field is `solde`, NOT `balance` (unlike the account balance endpoint below, which uses `balance`). 404 if journal doesn't exist.
 
@@ -40,5 +41,4 @@ No "entry" grouping entity — a compound entry is just several lines sharing da
 - No auth, no multi-tenancy yet.
 
 ## Cross-check against current frontend (see `mem:project_overview`)
-- `src/api/client.js` currently only implements `getJournals`, `getAccounts`, `getJournalLines(journalId)` — missing wrappers for: single account/journal fetch, account balance, account journal-lines, journal single-fetch, all journal-lines endpoint, journal-line CRUD (POST/PATCH), PATCH for accounts/journals, pcg-reference lookup.
-- `getAccounts()` in client.js takes no params currently used anywhere — `Accounts.jsx` page is still a stub despite the API being ready.
+- `src/api/client.js` is fully wrapped — no known gaps as of this writing. `createJournal`/`updateJournal` already pass through whatever body they're given, so the `type` field required no client.js changes when it was added; callers just needed to start including it.

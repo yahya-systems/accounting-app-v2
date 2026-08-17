@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { createJournal } from '../../api/client'
 import './CreateJournalPopup.css'
 
-const EMPTY_FORM = { name: '', description: '' }
+export const JOURNAL_TYPES = ['Caisse', 'Banque', 'Achats', 'Ventes', 'Opérations Diverses', 'Autre']
+
+const EMPTY_FORM = { name: '', description: '', type: 'Autre' }
 
 function fieldFromPath(path) {
   return Array.isArray(path) && path.length > 0 ? path[0] : null
@@ -43,6 +45,7 @@ export default function CreateJournalPopup({ onClose, onCreated }) {
       await createJournal({
         name: form.name.trim(),
         description: form.description.trim(),
+        type: form.type,
       })
       onCreated?.()
       onClose?.()
@@ -52,7 +55,7 @@ export default function CreateJournalPopup({ onClose, onCreated }) {
         const generalMessages = []
         for (const issue of err.details) {
           const field = fieldFromPath(issue.path)
-          if (field === 'name' || field === 'description') {
+          if (field === 'name' || field === 'description' || field === 'type') {
             nextFieldErrors[field] = issue.message
           } else {
             generalMessages.push(issue.message)
@@ -90,6 +93,22 @@ export default function CreateJournalPopup({ onClose, onCreated }) {
           onChange={(e) => updateField('description', e.target.value)}
         />
         {fieldErrors.description && <p className="field-error">{fieldErrors.description}</p>}
+      </div>
+
+      <div className="form-field">
+        <label htmlFor="cj-type">Type</label>
+        <select
+          id="cj-type"
+          value={form.type}
+          onChange={(e) => updateField('type', e.target.value)}
+        >
+          {JOURNAL_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        {fieldErrors.type && <p className="field-error">{fieldErrors.type}</p>}
       </div>
 
       {formError && <p className="error form-error">{formError}</p>}

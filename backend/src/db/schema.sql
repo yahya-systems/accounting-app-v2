@@ -7,10 +7,20 @@ CREATE TABLE accounts (
   metadata     jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
+CREATE TYPE journal_type AS ENUM (
+  'Caisse',
+  'Banque',
+  'Achats',
+  'Ventes',
+  'Opérations Diverses',
+  'Autre'
+);
+
 CREATE TABLE journals (
   id           serial PRIMARY KEY,
   name         text NOT NULL UNIQUE,
   description  text,
+  type         journal_type NOT NULL,
   is_active    boolean NOT NULL DEFAULT true,
   created_at   timestamptz NOT NULL DEFAULT now()
 );

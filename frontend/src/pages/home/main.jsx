@@ -1,29 +1,54 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getJournals, getJournalLines } from '../../api/client'
+import { Link } from 'react-router-dom'
+import { getJournals, getJournalBalance, getJournalLines, updateJournal } from '../../api/client'
 import { formatAmount } from '../../utils/format'
 import Table from '../../components/Table'
 import Popup from '../../components/Popup'
+import FilterBar from '../../components/FilterBar'
 import JournalLineDetailPopup from '../../components/JournalLineDetailPopup'
-import JournalHeader from '../../components/JournalHeader'
+import CreateJournalLinePopup from '../../components/CreateJournalLinePopup'
+import EditJournalPopup from '../journals/detail/EditJournalPopup'
 import CreateJournalPopup from './CreateJournalPopup'
+import PencilIcon from '../../components/PencilIcon'
+import '../journals/detail/JournalDetail.css'
 import './Home.css'
 
-const LINE_COLUMNS = [
-  { key: 'date', label: 'Date', sortable: true, width: 12 },
+const FILTER_SCHEMA = [
+  { key: 'from', label: 'Du', type: 'date', param: 'from' },
+  { key: 'to', label: 'Au', type: 'date', param: 'to' },
+  { key: 'accountId', label: 'Compte (préfixe)', type: 'text', param: 'account_id', placeholder: '4481', maxLength: 10 },
   {
-    key: 'account',
+    key: 'type',
+    label: 'Type',
+    type: 'select',
+    param: 'type',
+    options: [
+      { value: 'debit', label: 'Débit' },
+      { value: 'credit', label: 'Crédit' },
+    ],
+  },
+  { key: 'description', label: 'Description', type: 'text', param: 'description', placeholder: 'Recherche' },
+]
+
+const COLUMNS = [
+  {
+    key: 'account_pcg_code',
+    label: 'Numéro PCG',
+    sortable: true,
+    width: 16,
+  },
+  {
+    key: 'account_name',
     label: 'Compte',
     sortable: true,
-    render: (account) => `${account.id} — ${account.name}`,
+    width: 24,
   },
-  { key: 'description', label: 'Description', sortable: true },
   {
     key: 'debit_amount',
     label: 'Débit',
     sortable: true,
     align: 'right',
-    width: 14,
+    width: 16,
     render: formatAmount,
   },
   {
@@ -31,13 +56,14 @@ const LINE_COLUMNS = [
     label: 'Crédit',
     sortable: true,
     align: 'right',
-    width: 14,
+    width: 16,
     render: formatAmount,
   },
+  { key: 'date', label: 'Date', sortable: true, width: 14, render: (v) => v?.slice(0, 10) },
+  { key: 'description', label: 'Description', sortable: true },
 ]
 
 export default function Home() {
-  const navigate = useNavigate()
   const [journals, setJournals] = useState([])
   const [journalsStatus, setJournalsStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [journalsError, setJournalsError] = useState(null)
@@ -46,12 +72,25 @@ export default function Home() {
   const [isCreateJournalOpen, setIsCreateJournalOpen] = useState(false)
 
   const [selectedJournal, setSelectedJournal] = useState(null)
+
+  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isDeactivateConfirmOpen, setIsDeactivateConfirmOpen] = useState(false)
+  const [deactivateStatus, setDeactivateStatus] = useState('idle') // 'idle' | 'working' | 'error'
+  const [deactivateError, setDeactivateError] = useState(null)
+
+  const [appliedParams, setAppliedParams] = useState({})
+
   const [lines, setLines] = useState([])
   const [linesStatus, setLinesStatus] = useState('idle') // 'idle' | 'loading' | 'ready' | 'error'
   const [linesError, setLinesError] = useState(null)
   const [linesRefreshKey, setLinesRefreshKey] = useState(0)
 
+  const [isCreateLineOpen, setIsCreateLineOpen] = useState(false)
   const [selectedLineId, setSelectedLineId] = useState(null)
+
+  const [balance, setBalance] = useState(null)
+  const [balanceStatus, setBalanceStatus] = useState('idle') // 'idle' | 'loading' | 'ready' | 'error'
+  const [balanceError, setBalanceError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -61,6 +100,13 @@ export default function Home() {
         if (cancelled) return
         setJournals(data)
         setJournalsStatus('ready')
+
+        // Keep the selected journal's own data (e.g. type/is_active) in sync
+        // after edits/deactivation, without losing the selection.
+        setSelectedJournal((current) => {
+          if (!current) return current
+          return data.find((j) => j.id === current.id) ?? current
+        })
       })
       .catch((err) => {
         if (cancelled) return
@@ -80,7 +126,7 @@ export default function Home() {
     setLinesStatus('loading')
     setLinesError(null)
 
-    getJournalLines(selectedJournal.id)
+    getJournalLines(selectedJournal.id, appliedParams)
       .then((data) => {
         if (cancelled) return
         setLines(data)
@@ -95,22 +141,77 @@ export default function Home() {
     return () => {
       cancelled = true
     }
-  }, [selectedJournal, linesRefreshKey])
+  }, [selectedJournal, appliedParams, linesRefreshKey])
+
+  useEffect(() => {
+    if (!selectedJournal) return
+    let cancelled = false
+
+    setBalanceStatus('loading')
+    setBalanceError(null)
+
+    const balanceParams = {}
+    if (appliedParams.from) balanceParams.from = appliedParams.from
+    if (appliedParams.to) balanceParams.to = appliedParams.to
+
+    getJournalBalance(selectedJournal.id, balanceParams)
+      .then((data) => {
+        if (cancelled) return
+        setBalance(data)
+        setBalanceStatus('ready')
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setBalanceError(err.message)
+        setBalanceStatus('error')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedJournal, appliedParams, linesRefreshKey])
+
+  const rows = lines.map((line) => ({
+    ...line,
+    account_pcg_code: line.account?.id ?? null,
+    account_name: line.account?.name ?? null,
+  }))
 
   function handleSelectJournal(journal) {
     setSelectedJournal(journal)
-  }
-
-  function handleLearnMore() {
-    if (selectedJournal) navigate(`/journals/${selectedJournal.id}`)
+    setAppliedParams({})
   }
 
   function handleJournalCreated() {
     setJournalsRefreshKey((k) => k + 1)
   }
 
+  function handleJournalUpdated() {
+    setJournalsRefreshKey((k) => k + 1)
+  }
+
+  function handleLineCreated() {
+    setLinesRefreshKey((k) => k + 1)
+  }
+
   function handleLineUpdated() {
     setLinesRefreshKey((k) => k + 1)
+  }
+
+  async function handleConfirmDeactivate() {
+    if (!selectedJournal) return
+    setDeactivateStatus('working')
+    setDeactivateError(null)
+
+    try {
+      await updateJournal(selectedJournal.id, { is_active: false })
+      setIsDeactivateConfirmOpen(false)
+      setDeactivateStatus('idle')
+      setJournalsRefreshKey((k) => k + 1)
+    } catch (err) {
+      setDeactivateError(err.message)
+      setDeactivateStatus('error')
+    }
   }
 
   return (
@@ -156,6 +257,7 @@ export default function Home() {
                     {journal.description && (
                       <span className="list-item-subtitle">{journal.description}</span>
                     )}
+                    <span className="badge">{journal.type}</span>
                     {!journal.is_active && <span className="badge">inactif</span>}
                   </button>
                 </li>
@@ -177,22 +279,112 @@ export default function Home() {
       <main className="home-main">
         {!selectedJournal && <p className="muted">Sélectionnez un journal.</p>}
 
-        {selectedJournal && linesStatus === 'loading' && <p className="muted">Chargement…</p>}
+        {selectedJournal && (
+          <>
+            <div className="journal-detail-info">
+              <div className="journal-detail-info-header">
+                <div>
+                  <h2>{selectedJournal.name}</h2>
+                  <span className="journal-detail-id">{selectedJournal.id}</span>
+                  {selectedJournal.description && (
+                    <span className="journal-detail-description">{selectedJournal.description}</span>
+                  )}
+                  <span className="journal-detail-created-at">
+                    Créé le {selectedJournal.created_at?.slice(0, 10)}
+                  </span>
+                  <span className="badge">{selectedJournal.type}</span>
+                  <span className="badge">{selectedJournal.is_active ? 'Actif' : 'Inactif'}</span>
+                </div>
+                <div className="journal-detail-info-actions">
+                  <button
+                    type="button"
+                    className="button journal-detail-edit-icon icon-button"
+                    onClick={() => setIsEditOpen(true)}
+                    aria-label="Modifier le journal"
+                    title="Modifier le journal"
+                  >
+                    <PencilIcon />
+                  </button>
+                  {selectedJournal.is_active && (
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() => {
+                        setDeactivateError(null)
+                        setIsDeactivateConfirmOpen(true)
+                      }}
+                    >
+                      Désactiver le journal
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
 
-        {selectedJournal && linesStatus === 'error' && (
-          <p className="error">Échec du chargement des écritures : {linesError}</p>
-        )}
+            <div className="journal-detail-filter-row">
+              <FilterBar schema={FILTER_SCHEMA} onApply={setAppliedParams} />
+              <button
+                type="button"
+                className="button journal-detail-create-line icon-button"
+                onClick={() => setIsCreateLineOpen(true)}
+                aria-label="Créer une écriture"
+                title="Créer une écriture"
+              >
+                +
+              </button>
+            </div>
 
-        {selectedJournal && linesStatus === 'ready' && (
-          <div className="home-table-container">
-            <JournalHeader journal={selectedJournal} onLearnMore={handleLearnMore} />
-            <Table
-              columns={LINE_COLUMNS}
-              data={lines}
-              emptyMessage="Aucune écriture."
-              onRowClick={(line) => setSelectedLineId(line.id)}
-            />
-          </div>
+            <div className="journal-detail-table-container">
+              {linesStatus === 'loading' && <p className="muted">Chargement…</p>}
+              {linesStatus === 'error' && (
+                <p className="error">Échec du chargement des écritures : {linesError}</p>
+              )}
+              {linesStatus === 'ready' && (
+                <Table
+                  columns={COLUMNS}
+                  data={rows}
+                  emptyMessage="Aucune écriture."
+                  onRowClick={(line) => setSelectedLineId(line.id)}
+                />
+              )}
+            </div>
+
+            <div className="journal-detail-balance">
+              {balanceStatus === 'loading' && <p className="muted">Chargement du solde…</p>}
+              {balanceStatus === 'error' && (
+                <p className="error">Échec du chargement du solde : {balanceError}</p>
+              )}
+              {balanceStatus === 'ready' && balance && (
+                <>
+                  <p className="journal-detail-balance-label">
+                    {appliedParams.from || appliedParams.to
+                      ? `Total du ${appliedParams.from || '…'} au ${appliedParams.to || '…'} (aucun autre filtre n'est pris en compte)`
+                      : 'Total'}
+                  </p>
+                  <div className="journal-detail-balance-values">
+                    <div className="journal-detail-balance-item">
+                      <span className="journal-detail-balance-item-label">Débit total</span>
+                      <span className="journal-detail-balance-item-value">
+                        {formatAmount(balance.total_debit)}
+                      </span>
+                    </div>
+                    <div className="journal-detail-balance-item">
+                      <span className="journal-detail-balance-item-label">Crédit total</span>
+                      <span className="journal-detail-balance-item-value">
+                        {formatAmount(balance.total_credit)}
+                      </span>
+                    </div>
+                    <div className="journal-detail-balance-item">
+                      <span className="journal-detail-balance-item-label">Solde</span>
+                      <span className="journal-detail-balance-item-value">
+                        {formatAmount(balance.solde)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
         )}
       </main>
 
@@ -205,6 +397,60 @@ export default function Home() {
           onClose={() => setIsCreateJournalOpen(false)}
           onCreated={handleJournalCreated}
         />
+      </Popup>
+
+      {selectedJournal && (
+        <Popup open={isEditOpen} onClose={() => setIsEditOpen(false)} title="Modifier le journal">
+          <EditJournalPopup
+            journal={selectedJournal}
+            onClose={() => setIsEditOpen(false)}
+            onUpdated={handleJournalUpdated}
+          />
+        </Popup>
+      )}
+
+      {selectedJournal && (
+        <Popup
+          open={isCreateLineOpen}
+          onClose={() => setIsCreateLineOpen(false)}
+          title="Créer une écriture"
+        >
+          <CreateJournalLinePopup
+            journalId={selectedJournal.id}
+            journalType={selectedJournal.type}
+            onClose={() => setIsCreateLineOpen(false)}
+            onCreated={handleLineCreated}
+          />
+        </Popup>
+      )}
+
+      <Popup
+        open={isDeactivateConfirmOpen}
+        onClose={() => setIsDeactivateConfirmOpen(false)}
+        title="Désactiver le journal"
+      >
+        <div className="deactivate-confirm">
+          <p>Voulez-vous vraiment désactiver ce journal ?</p>
+          {deactivateStatus === 'error' && <p className="error">{deactivateError}</p>}
+          <div className="form-actions">
+            <button
+              type="button"
+              className="button"
+              onClick={() => setIsDeactivateConfirmOpen(false)}
+              disabled={deactivateStatus === 'working'}
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="button"
+              onClick={handleConfirmDeactivate}
+              disabled={deactivateStatus === 'working'}
+            >
+              {deactivateStatus === 'working' ? 'Désactivation…' : 'Désactiver'}
+            </button>
+          </div>
+        </div>
       </Popup>
 
       <Popup open={selectedLineId !== null} onClose={() => setSelectedLineId(null)} title="Écriture">

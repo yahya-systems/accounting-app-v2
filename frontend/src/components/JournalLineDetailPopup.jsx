@@ -9,6 +9,7 @@ import {
 } from '../utils/format'
 import Popup from './Popup'
 import AccountPickerPopup from './AccountPickerPopup'
+import PencilIcon from './PencilIcon'
 import './JournalLineDetailPopup.css'
 
 const currentYear = new Date().getFullYear()
@@ -429,8 +430,14 @@ export default function JournalLineDetailPopup({ lineId, onClose, onUpdated }) {
         <button type="button" className="button" onClick={onClose}>
           Fermer
         </button>
-        <button type="button" className="button" onClick={startEditing}>
-          Modifier
+        <button
+          type="button"
+          className="button icon-button"
+          onClick={startEditing}
+          aria-label="Modifier"
+          title="Modifier"
+        >
+          <PencilIcon />
         </button>
       </div>
     </div>

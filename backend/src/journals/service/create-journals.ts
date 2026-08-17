@@ -1,10 +1,11 @@
 import { AppError } from "@middleware/error/app-error";
 import { query } from "@db/pool";
-import type { Journal } from "@journals/types";
+import type { Journal, JournalType } from "@journals/types";
 
 type CreateJournalInput = {
   name: string;
   description: string | null;
+  type: JournalType;
 };
 
 export async function createJournal(
@@ -19,10 +20,10 @@ export async function createJournal(
   }
 
   const rows = await query<Journal>(
-    `INSERT INTO journals (name, description)
-     VALUES ($1, $2)
-     RETURNING id, name, description, is_active, created_at`,
-    [input.name, input.description]
+    `INSERT INTO journals (name, description, type)
+     VALUES ($1, $2, $3)
+     RETURNING id, name, description, type, is_active, created_at`,
+    [input.name, input.description, input.type]
   );
 
   const created = rows[0];

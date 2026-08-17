@@ -8,6 +8,7 @@ import FilterBar from '../../../components/FilterBar'
 import JournalLineDetailPopup from '../../../components/JournalLineDetailPopup'
 import CreateJournalLinePopup from '../../../components/CreateJournalLinePopup'
 import EditJournalPopup from './EditJournalPopup'
+import PencilIcon from '../../../components/PencilIcon'
 import './JournalDetail.css'
 
 const FILTER_SCHEMA = [
@@ -222,11 +223,18 @@ export default function JournalDetail() {
               <span className="journal-detail-created-at">
                 Créé le {journal.created_at?.slice(0, 10)}
               </span>
+              <span className="badge">{journal.type}</span>
               <span className="badge">{journal.is_active ? 'Actif' : 'Inactif'}</span>
             </div>
             <div className="journal-detail-info-actions">
-              <button type="button" className="button" onClick={() => setIsEditOpen(true)}>
-                Modifier le journal
+              <button
+                type="button"
+                className="button icon-button"
+                onClick={() => setIsEditOpen(true)}
+                aria-label="Modifier le journal"
+                title="Modifier le journal"
+              >
+                <PencilIcon />
               </button>
               {journal.is_active && (
                 <button
@@ -324,6 +332,7 @@ export default function JournalDetail() {
       >
         <CreateJournalLinePopup
           journalId={id}
+          journalType={journal?.type}
           onClose={() => setIsCreateLineOpen(false)}
           onCreated={handleLineCreated}
         />

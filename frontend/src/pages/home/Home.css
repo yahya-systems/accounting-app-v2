@@ -55,14 +55,8 @@
 .home-main {
   flex: 1;
   min-width: 0;
-  padding: 48px 24px;
-  display: flex;
-  flex-direction: column;
-}
-
-.home-table-container {
-  flex: 1;
   min-height: 0;
+  padding: 48px 24px;
   display: flex;
   flex-direction: column;
 }

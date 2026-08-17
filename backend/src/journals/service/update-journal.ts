@@ -23,10 +23,18 @@ export async function updateJournal(id: number, input: UpdateJournalInput): Prom
     `UPDATE journals
      SET name = COALESCE($1, name),
          description = CASE WHEN $2::boolean THEN $3 ELSE description END,
-         is_active = COALESCE($4, is_active)
-     WHERE id = $5
-     RETURNING id, name, description, is_active, created_at`,
-    [input.name ?? null, input.description !== undefined, input.description ?? null, input.is_active ?? null, id]
+         type = COALESCE($4, type),
+         is_active = COALESCE($5, is_active)
+     WHERE id = $6
+     RETURNING id, name, description, type, is_active, created_at`,
+    [
+      input.name ?? null,
+      input.description !== undefined,
+      input.description ?? null,
+      input.type ?? null,
+      input.is_active ?? null,
+      id,
+    ]
   );
 
   return rows[0]!;

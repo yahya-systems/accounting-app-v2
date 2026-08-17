@@ -13,10 +13,22 @@ import Popup from '../../../components/Popup'
 import FilterBar from '../../../components/FilterBar'
 import JournalLineDetailPopup from '../../../components/JournalLineDetailPopup'
 import EditAccountPopup from './EditAccountPopup'
+import PencilIcon from '../../../components/PencilIcon'
 import './AccountDetail.css'
 
 const COLUMNS = [
-  { key: 'date', label: 'Date', sortable: true, width: 16, render: (v) => v?.slice(0, 10) },
+  { key: 'date', label: 'Date', sortable: true, width: 10, render: (v) => v?.slice(0, 10) },
+  {
+    key: 'journal_name',
+    label: 'Journal',
+    sortable: true,
+    width: 24,
+  },
+  {
+    key: 'description',
+    label: 'Description',
+    sortable: true,
+  },
   {
     key: 'debit_amount',
     label: 'Débit',
@@ -32,17 +44,6 @@ const COLUMNS = [
     align: 'right',
     width: 18,
     render: formatAmount,
-  },
-  {
-    key: 'journal_name',
-    label: 'Journal',
-    sortable: true,
-    width: 24,
-  },
-  {
-    key: 'description',
-    label: 'Description',
-    sortable: true,
   },
 ]
 
@@ -238,8 +239,14 @@ export default function AccountDetail() {
               <p className="account-detail-id">{account.id}</p>
             </div>
             <div className="account-detail-info-actions">
-              <button type="button" className="button" onClick={() => setIsEditOpen(true)}>
-                Modifier le compte
+              <button
+                type="button"
+                className="button icon-button"
+                onClick={() => setIsEditOpen(true)}
+                aria-label="Modifier le compte"
+                title="Modifier le compte"
+              >
+                <PencilIcon />
               </button>
               {account.is_active && (
                 <button
