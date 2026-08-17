@@ -10,6 +10,16 @@
   gap: 4px;
 }
 
+.create-journal-line-form .form-field-row {
+  display: flex;
+  gap: 16px;
+}
+
+.create-journal-line-form .form-field-row .form-field {
+  flex: 1;
+  min-width: 0;
+}
+
 .create-journal-line-form .form-field label {
   font-size: 13px;
   color: var(--gray-700);

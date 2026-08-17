@@ -31,6 +31,7 @@ const COLUMNS = [
   { key: 'account_id', label: 'Compte (id)', sortable: true, width: 14 },
   { key: 'account_name', label: 'Compte', sortable: true, width: 18 },
   { key: 'journal_name', label: 'Journal', sortable: true, width: 16 },
+  { key: 'description', label: 'Description', sortable: true, width: 16 },
   {
     key: 'debit_amount',
     label: 'Débit',

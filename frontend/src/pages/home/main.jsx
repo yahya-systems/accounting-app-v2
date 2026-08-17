@@ -17,6 +17,7 @@ const LINE_COLUMNS = [
     sortable: true,
     render: (account) => `${account.id} — ${account.name}`,
   },
+  { key: 'description', label: 'Description', sortable: true },
   {
     key: 'debit_amount',
     label: 'Débit',

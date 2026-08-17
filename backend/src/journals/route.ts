@@ -5,7 +5,8 @@ import { createJournal } from "./service/create-journals";
 import { updateJournal } from "./service/update-journal";
 import { getJournal } from "./service/get-journal";
 import { getJournalJournalLines } from "./service/get-journal-journal-lines";
-import { listJournalsQuerySchema, createJournalBodySchema, updateJournalSchema, getJournalJournalLinesQuerySchema, journalIdParamSchema } from "@journals/schema";
+import { getJournalBalance } from "./service/get-journal-balance";
+import { listJournalsQuerySchema, createJournalBodySchema, updateJournalSchema, getJournalJournalLinesQuerySchema, getJournalBalanceQuerySchema, journalIdParamSchema } from "@journals/schema";
 
 export const journalsRouter = Router();
 
@@ -57,6 +58,17 @@ journalsRouter.get("/:id/journal-lines", async (req, res, next) => {
     const filters = getJournalJournalLinesQuerySchema.parse(req.query);
     const lines = await getJournalJournalLines(id, filters);
     res.json(lines);
+  } catch (err) {
+    next(err);
+  }
+});
+
+journalsRouter.get("/:id/balance", async (req, res, next) => {
+  try {
+    const { id } = journalIdParamSchema.parse(req.params);
+    const filters = getJournalBalanceQuerySchema.parse(req.query);
+    const result = await getJournalBalance(id, filters);
+    res.json(result);
   } catch (err) {
     next(err);
   }

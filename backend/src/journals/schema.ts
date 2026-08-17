@@ -30,6 +30,11 @@ export const getJournalJournalLinesQuerySchema = z.object({
   description: z.string().optional(),
 });
 
+export const getJournalBalanceQuerySchema = z.object({
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+});
+
 export const journalIdParamSchema = z.object({
   id: z.coerce.number().int().positive().max(2147483647),
 });

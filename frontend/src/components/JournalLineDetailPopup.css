@@ -26,6 +26,15 @@
   color: var(--gray-500);
 }
 
+.journal-line-detail-row dd a {
+  color: var(--gray-900);
+  text-decoration: underline;
+}
+
+.journal-line-detail-row dd a:hover {
+  color: var(--gray-700);
+}
+
 .journal-line-detail .form-actions,
 .journal-line-detail-form .form-actions {
   display: flex;

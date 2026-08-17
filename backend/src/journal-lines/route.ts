@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { listJournalLines } from "./service/list-journal-lines";
 import { getJournalLine } from "./service/get-journal-line";
-import { createJournalLine } from "./service/create-journal-line";
+import { createJournalLines } from "./service/create-journal-line";
 import { updateJournalLine } from "./service/update-journal-line";
-import { listJournalLinesQuerySchema, journalLineIdParamSchema, createJournalLineBodySchema, updateJournalLineBodySchema } from "@journal-lines/schema";
+import { listJournalLinesQuerySchema, journalLineIdParamSchema, createJournalLinesBodySchema, updateJournalLineBodySchema } from "@journal-lines/schema";
 
 export const journalLinesRouter = Router();
 
@@ -29,9 +29,9 @@ journalLinesRouter.get("/:id", async (req, res, next) => {
 
 journalLinesRouter.post("/", async (req, res, next) => {
   try {
-    const body = createJournalLineBodySchema.parse(req.body);
-    const line = await createJournalLine(body);
-    res.status(201).json(line);
+    const body = createJournalLinesBodySchema.parse(req.body);
+    const lines = await createJournalLines(body);
+    res.status(201).json(lines);
   } catch (err) {
     next(err);
   }

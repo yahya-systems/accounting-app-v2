@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getJournal, getJournalLines, updateJournal } from '../../../api/client'
+import { getJournal, getJournalBalance, getJournalLines, updateJournal } from '../../../api/client'
 import { formatAmount } from '../../../utils/format'
 import Table from '../../../components/Table'
 import Popup from '../../../components/Popup'
@@ -28,7 +28,6 @@ const FILTER_SCHEMA = [
 ]
 
 const COLUMNS = [
-  { key: 'date', label: 'Date', sortable: true, width: 14, render: (v) => v?.slice(0, 10) },
   {
     key: 'account_pcg_code',
     label: 'Numéro PCG',
@@ -57,6 +56,8 @@ const COLUMNS = [
     width: 16,
     render: formatAmount,
   },
+  { key: 'date', label: 'Date', sortable: true, width: 14, render: (v) => v?.slice(0, 10) },
+  { key: 'description', label: 'Description', sortable: true },
 ]
 
 export default function JournalDetail() {
@@ -81,6 +82,10 @@ export default function JournalDetail() {
 
   const [isCreateLineOpen, setIsCreateLineOpen] = useState(false)
   const [selectedLineId, setSelectedLineId] = useState(null)
+
+  const [balance, setBalance] = useState(null)
+  const [balanceStatus, setBalanceStatus] = useState('loading') // 'loading' | 'ready' | 'error'
+  const [balanceError, setBalanceError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -121,6 +126,33 @@ export default function JournalDetail() {
         if (cancelled) return
         setLinesError(err.message)
         setLinesStatus('error')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, appliedParams, linesRefreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    setBalanceStatus('loading')
+    setBalanceError(null)
+
+    const balanceParams = {}
+    if (appliedParams.from) balanceParams.from = appliedParams.from
+    if (appliedParams.to) balanceParams.to = appliedParams.to
+
+    getJournalBalance(id, balanceParams)
+      .then((data) => {
+        if (cancelled) return
+        setBalance(data)
+        setBalanceStatus('ready')
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setBalanceError(err.message)
+        setBalanceStatus('error')
       })
 
     return () => {
@@ -236,6 +268,42 @@ export default function JournalDetail() {
             emptyMessage="Aucune écriture."
             onRowClick={(line) => setSelectedLineId(line.id)}
           />
+        )}
+      </div>
+
+      <div className="journal-detail-balance">
+        {balanceStatus === 'loading' && <p className="muted">Chargement du solde…</p>}
+        {balanceStatus === 'error' && (
+          <p className="error">Échec du chargement du solde : {balanceError}</p>
+        )}
+        {balanceStatus === 'ready' && balance && (
+          <>
+            <p className="journal-detail-balance-label">
+              {appliedParams.from || appliedParams.to
+                ? `Total du ${appliedParams.from || '…'} au ${appliedParams.to || '…'} (aucun autre filtre n'est pris en compte)`
+                : 'Total'}
+            </p>
+            <div className="journal-detail-balance-values">
+              <div className="journal-detail-balance-item">
+                <span className="journal-detail-balance-item-label">Débit total</span>
+                <span className="journal-detail-balance-item-value">
+                  {formatAmount(balance.total_debit)}
+                </span>
+              </div>
+              <div className="journal-detail-balance-item">
+                <span className="journal-detail-balance-item-label">Crédit total</span>
+                <span className="journal-detail-balance-item-value">
+                  {formatAmount(balance.total_credit)}
+                </span>
+              </div>
+              <div className="journal-detail-balance-item">
+                <span className="journal-detail-balance-item-label">Solde</span>
+                <span className="journal-detail-balance-item-value">
+                  {formatAmount(balance.solde)}
+                </span>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

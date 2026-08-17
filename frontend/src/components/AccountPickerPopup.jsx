@@ -14,8 +14,8 @@ const COLUMNS = [
 // The "+" button opens account creation on top of this popup; on success the
 // new account is prepended and the table's sort resets so it's visible at
 // the top (the user can still sort normally afterward).
-export default function AccountPickerPopup({ onSelect, onClose }) {
-  const [search, setSearch] = useState({ id: '', name: '' })
+export default function AccountPickerPopup({ onSelect, onClose, initialCode = '' }) {
+  const [search, setSearch] = useState({ id: initialCode, name: '' })
   const [accounts, setAccounts] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [error, setError] = useState(null)
@@ -98,7 +98,7 @@ export default function AccountPickerPopup({ onSelect, onClose }) {
             key={tableResetKey}
             columns={COLUMNS}
             data={accounts}
-            emptyMessage="Aucun compte."
+            emptyMessage="Aucun compte, créer un nouveau."
             onRowClick={(account) => {
               onSelect?.(account)
               onClose?.()

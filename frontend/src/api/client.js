@@ -82,6 +82,12 @@ export function getAccountBalance(id, params = {}) {
   return request(`/accounts/${id}/balance${query ? `?${query}` : ''}`)
 }
 
+
+export function getJournalBalance(id, params = {}) {
+  const query = new URLSearchParams(params).toString()
+  return request(`/journals/${id}/balance${query ? `?${query}` : ''}`)
+}
+
 export function getAccountJournalLines(id, params = {}) {
   const query = new URLSearchParams(params).toString()
   return request(`/accounts/${id}/journal-lines${query ? `?${query}` : ''}`)
@@ -97,10 +103,10 @@ export function getAllJournalLines(params = {}) {
   return request(`/journal-lines${query ? `?${query}` : ''}`)
 }
 
-export function createJournalLine(data) {
+export function createJournalLine(lines) {
   return request('/journal-lines', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify(Array.isArray(lines) ? lines : [lines]),
   })
 }
 

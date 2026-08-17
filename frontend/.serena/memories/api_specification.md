@@ -18,14 +18,14 @@ Source: api-specification.md. All endpoints prefixed `/api`, JSON bodies. Errors
 - `GET /api/journals/:id` — 400 if `:id` not valid positive int, 404 if valid but missing.
 - `PATCH /api/journals/:id` — optional `{name, description, is_active}`. Same id validation.
 - `GET /api/journals/:id/journal-lines` — filters: `from`, `to`, `account_id` (**prefix** match), `type`, `description`. Returns lines with embedded `account` (not `journal`).
-- **No balance endpoint for journals** (not a meaningful financial position).
+- `GET /api/journals/:id/balance` — **this endpoint DOES exist** (previously misdocumented here as absent — verified against `backend/src/journals/service/get-journal-balance.ts` and already wired into `JournalDetail.jsx`). Filters `from`/`to`. Returns `{total_debit, total_credit, solde}` — note the field is `solde`, NOT `balance` (unlike the account balance endpoint below, which uses `balance`). 404 if journal doesn't exist.
 
 ## Journal Lines
 No "entry" grouping entity — a compound entry is just several lines sharing date+journal. **Balance is not enforced at write time.**
 - `GET /api/journal-lines` — filters: `from`, `to`, `account_id` (prefix), `journal_id`, `type`, `description`. Returns lines with **both** `account` and `journal` embedded (neither implied by URL).
 - `GET /api/journal-lines/:id` — richer embed: `account` includes `pcg_reference_name`, `journal` is `{id, name}`. 400/404 on invalid/missing id.
 - `POST /api/journal-lines` — body `{journal_id, account_id, date, description, debit_amount, credit_amount}`. `account_id` must be **already fully padded** (no auto-pad here, unlike account creation). `journal_id`/`account_id` 404 if missing. Exactly one of debit/credit must be positive nonzero; other must be null/omitted (both-set, both-null, or either-zero → 400).
-- `PATCH /api/journal-lines/:id` — all optional. debit/credit: **provide both or omit both** (providing just one → 400); if both provided, same exactly-one-positive rule as POST.
+- `PATCH /api/journal-lines/:id` — all optional, including `journal_id` and `account_id` (both ARE PATCHable — previously misdocumented here as not editable; corrected). debit/credit: **provide both or omit both** (providing just one → 400); if both provided, same exactly-one-positive rule as POST.
 - No DELETE endpoint for journal lines. Editing a line under an inactive journal is currently allowed (unrestricted, not yet decided).
 
 ## Reference Data
@@ -35,6 +35,7 @@ No "entry" grouping entity — a compound entry is just several lines sharing da
 - **Account ids are always strings, zero-padded to 10 digits** — never coerce to number, never strip leading zeros.
 - **Journal/journal-line ids are numbers** — invalid values cleanly 400, not crash.
 - **`debit_amount`/`credit_amount` are returned as strings** (Postgres numeric, e.g. `"63000.00"`) — must parse before arithmetic. (Matches existing `formatAmount()` util in `src/utils/format.js`, which already expects string input.)
+- **Journal-line `date` field format (verified against real backend code, `backend/src/db/pool.ts` + `backend/src/journal-lines/schema.ts`)**: GET endpoints return plain **ISO `YYYY-MM-DD`** (raw Postgres date string, confirmed via `pool.ts`'s custom type parser — this was earlier wrongly claimed to be `DD-MM-YYYY`; that was never true). POST/PATCH accept **`MM-DD`** (year-less, month-before-day to match GET's ordering; year is added server-side using the current server-clock year — see `dayMonthDateSchema` in `backend/src/journal-lines/schema.ts`). This was originally `DD-MM` and was changed to `MM-DD` for consistency with GET's month-before-day ordering. Frontend helpers live in `src/utils/format.js`: `fullDateToDayMonth` (GET's `YYYY-MM-DD` → `MM-DD`), `dayMonthToDateInputValue`/`dateInputValueToDayMonth` (`MM-DD` ⇄ native `<input type="date">`'s `YYYY-MM-DD`, using current year).
 - No trial balance endpoint yet — only per-account balance.
 - No auth, no multi-tenancy yet.
 

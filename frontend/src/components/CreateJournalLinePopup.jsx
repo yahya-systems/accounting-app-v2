@@ -1,25 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
 import { createJournalLine, getAccount, getJournals } from '../api/client'
+import { dayMonthToDateInputValue, dateInputValueToDayMonth } from '../utils/format'
 import Popup from './Popup'
 import AccountPickerPopup from './AccountPickerPopup'
 import './CreateJournalLinePopup.css'
+
+const currentYear = new Date().getFullYear()
 
 function makeEmptyForm(journalId) {
   return {
     journal_id: journalId ? String(journalId) : '',
     account_id: '',
+    counter_account_id: '',
     date: '',
-    description: '',
-    type: 'debit', // 'debit' | 'credit'
+    piece: '',
+    libele: '',
+    nature_achat: '',
+    code_tva: '',
+    type: 'debit', // 'debit' | 'credit' — applies to `account_id`; counter account gets the opposite
     amount: '',
   }
+}
+
+// Concatenates the 4 description fields into the single `description` string
+// the API expects: "[PIECE] — [LIBELE] — [NATURE D'ACHAT] — [CODE TVA]".
+function buildDescription(form) {
+  return [form.piece, form.libele, form.nature_achat, form.code_tva]
+    .map((part) => part.trim())
+    .join(' — ')
 }
 
 function fieldFromPath(path) {
   return Array.isArray(path) && path.length > 0 ? path[0] : null
 }
 
-function clientValidate(form, accountLookupStatus, requireJournalSelect) {
+function clientValidate(form, accountLookupStatus, counterAccountLookupStatus, requireJournalSelect) {
   const errors = {}
 
   if (requireJournalSelect && !form.journal_id) {
@@ -34,8 +49,23 @@ function clientValidate(form, accountLookupStatus, requireJournalSelect) {
     errors.account_id = "Ce compte n'existe pas"
   }
 
-  if (!form.date) errors.date = 'date est requise'
-  if (!form.description.trim()) errors.description = 'description est requise'
+  const counterAccountId = form.counter_account_id.trim()
+  if (counterAccountId) {
+    if (!/^\d+$/.test(counterAccountId)) {
+      errors.counter_account_id = 'account_id doit contenir uniquement des chiffres'
+    } else if (counterAccountLookupStatus === 'not-found') {
+      errors.counter_account_id = "Ce compte n'existe pas"
+    } else if (counterAccountId === form.account_id.trim()) {
+      errors.counter_account_id = 'La contre-partie doit être différente de la partie'
+    }
+  }
+
+  if (!form.date) {
+    errors.date = 'date est requise'
+  } else if (!/^\d{2}-\d{2}$/.test(form.date)) {
+    errors.date = 'date must be in MM-DD format'
+  }
+  if (!form.libele.trim()) errors.libele = 'libellé est requis'
 
   const amountNum = Number(form.amount)
   if (!form.amount.trim() || Number.isNaN(amountNum) || amountNum <= 0) {
@@ -45,17 +75,67 @@ function clientValidate(form, accountLookupStatus, requireJournalSelect) {
   return errors
 }
 
-// Maps server-side field names (debit_amount/credit_amount) back onto our
-// single `amount` field so validation errors surface next to the right input.
+// Maps server-side field names back onto our form fields so validation
+// errors surface next to the right input. `description` doesn't exist as a
+// form field anymore (it's built from piece/libele/nature_achat/code_tva),
+// so server-side description errors surface next to Libellé, the closest
+// analog and the only required one of the four.
 function mapServerField(field) {
   if (field === 'debit_amount' || field === 'credit_amount') return 'amount'
+  if (field === 'description') return 'libele'
   return field
+}
+
+// Hook: live exact-id lookup against /api/accounts/:id, debounced. Returns
+// [status, name] where status is 'idle' | 'loading' | 'found' | 'not-found'.
+function useAccountLookup(accountId) {
+  const [status, setStatus] = useState('idle')
+  const [name, setName] = useState(null)
+  const seqRef = useRef(0)
+
+  useEffect(() => {
+    const trimmed = accountId.trim()
+
+    if (!trimmed || trimmed.length !== 10 || !/^\d+$/.test(trimmed)) {
+      setStatus('idle')
+      setName(null)
+      return
+    }
+
+    const seq = ++seqRef.current
+    setStatus('loading')
+
+    const timeout = setTimeout(() => {
+      getAccount(trimmed)
+        .then((data) => {
+          if (seqRef.current !== seq) return
+          setName(data?.name ?? null)
+          setStatus('found')
+        })
+        .catch(() => {
+          if (seqRef.current !== seq) return
+          setName(null)
+          setStatus('not-found')
+        })
+    }, 250)
+
+    return () => clearTimeout(timeout)
+  }, [accountId])
+
+  return [status, name, setStatus, setName, seqRef]
 }
 
 // Journal-line creation popup. When `journalId` is provided (e.g. from the
 // journal detail page), the journal is fixed and not shown as a field. When
 // omitted (e.g. the global /journal-lines page), a journal dropdown is shown
 // instead so the user picks which journal the line belongs to.
+//
+// Supports two modes:
+// - Single entry (default): only "Partie" is filled in, one journal line is created.
+// - Double entry: "Contre-partie" is also filled in. Two journal lines are created in
+//   one request — one for each account, same date/description, one debit and one credit
+//   (the amount is shared; Type picks which side "Partie" gets, "Contre-partie" gets the
+//   opposite). The debit line is always sent first in the array.
 export default function CreateJournalLinePopup({ journalId, onClose, onCreated }) {
   const requireJournalSelect = !journalId
 
@@ -66,12 +146,28 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
 
   const [journals, setJournals] = useState([])
 
-  // 'idle' | 'loading' | 'found' | 'not-found'
-  const [accountLookupStatus, setAccountLookupStatus] = useState('idle')
-  const [accountName, setAccountName] = useState(null)
-  const lookupSeq = useRef(0)
+  const [accountLookupStatus, accountName, setAccountLookupStatus, setAccountName, accountLookupSeq] =
+    useAccountLookup(form.account_id)
+  const [
+    counterAccountLookupStatus,
+    counterAccountName,
+    setCounterAccountLookupStatus,
+    setCounterAccountName,
+    counterAccountLookupSeq,
+  ] = useAccountLookup(form.counter_account_id)
 
   const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [isCounterPickerOpen, setIsCounterPickerOpen] = useState(false)
+
+  const isDoubleEntry = form.counter_account_id.trim().length > 0
+
+  // Auto-fill Libellé with the account name once the typed account_id
+  // resolves via live lookup — only if Libellé is still empty, so it never
+  // clobbers something the user already typed.
+  useEffect(() => {
+    if (accountLookupStatus !== 'found' || !accountName) return
+    setForm((f) => (f.libele.trim() ? f : { ...f, libele: accountName }))
+  }, [accountLookupStatus, accountName])
 
   useEffect(() => {
     if (!requireJournalSelect) return
@@ -92,52 +188,33 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
     }
   }, [requireJournalSelect])
 
-  // Live exact-id lookup against /api/accounts/:id, debounced.
-  useEffect(() => {
-    const accountId = form.account_id.trim()
-
-    if (!accountId || accountId.length !== 10 || !/^\d+$/.test(accountId)) {
-      setAccountLookupStatus('idle')
-      setAccountName(null)
-      return
-    }
-
-    const seq = ++lookupSeq.current
-    setAccountLookupStatus('loading')
-
-    const timeout = setTimeout(() => {
-      getAccount(accountId)
-        .then((data) => {
-          if (lookupSeq.current !== seq) return
-          setAccountName(data?.name ?? null)
-          setAccountLookupStatus('found')
-        })
-        .catch(() => {
-          if (lookupSeq.current !== seq) return
-          setAccountName(null)
-          setAccountLookupStatus('not-found')
-        })
-    }, 250)
-
-    return () => clearTimeout(timeout)
-  }, [form.account_id])
-
   function updateField(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
   function handleAccountSelected(account) {
     // Skip the round-trip lookup: we already have the full account from the picker.
-    lookupSeq.current += 1
-    setForm((f) => ({ ...f, account_id: account.id }))
+    accountLookupSeq.current += 1
+    setForm((f) => ({
+      ...f,
+      account_id: account.id,
+      libele: f.libele.trim() ? f.libele : account.name,
+    }))
     setAccountName(account.name)
     setAccountLookupStatus('found')
+  }
+
+  function handleCounterAccountSelected(account) {
+    counterAccountLookupSeq.current += 1
+    setForm((f) => ({ ...f, counter_account_id: account.id }))
+    setCounterAccountName(account.name)
+    setCounterAccountLookupStatus('found')
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
 
-    const errors = clientValidate(form, accountLookupStatus, requireJournalSelect)
+    const errors = clientValidate(form, accountLookupStatus, counterAccountLookupStatus, requireJournalSelect)
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       setFormError(null)
@@ -149,14 +226,38 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
     setSubmitting(true)
 
     try {
-      await createJournalLine({
-        journal_id: Number(requireJournalSelect ? form.journal_id : journalId),
+      const journal_id = Number(requireJournalSelect ? form.journal_id : journalId)
+      const date = form.date
+      const description = buildDescription(form)
+      const amount = Number(form.amount)
+
+      const partieLine = {
+        journal_id,
         account_id: form.account_id.trim(),
-        date: form.date,
-        description: form.description.trim(),
-        debit_amount: form.type === 'debit' ? Number(form.amount) : null,
-        credit_amount: form.type === 'credit' ? Number(form.amount) : null,
-      })
+        date,
+        description,
+        debit_amount: form.type === 'debit' ? amount : null,
+        credit_amount: form.type === 'credit' ? amount : null,
+      }
+
+      const lines = [partieLine]
+
+      if (isDoubleEntry) {
+        const contrePartieLine = {
+          journal_id,
+          account_id: form.counter_account_id.trim(),
+          date,
+          description,
+          debit_amount: form.type === 'credit' ? amount : null,
+          credit_amount: form.type === 'debit' ? amount : null,
+        }
+        lines.push(contrePartieLine)
+      }
+
+      // Debit line always first.
+      lines.sort((a, b) => (b.debit_amount ?? 0) - (a.debit_amount ?? 0))
+
+      await createJournalLine(lines)
       onCreated?.()
       onClose?.()
     } catch (err) {
@@ -203,13 +304,18 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
       )}
 
       <div className="form-field">
-        <label htmlFor="cjl-account-id">Compte (id)</label>
+        <label htmlFor="cjl-account-id">Partie</label>
         <div className="form-field-with-hint">
           <input
             id="cjl-account-id"
             type="text"
             value={form.account_id}
             onChange={(e) => updateField('account_id', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              setIsPickerOpen(true)
+            }}
             placeholder="4481000000"
             maxLength={10}
           />
@@ -227,33 +333,118 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
       </div>
 
       <Popup open={isPickerOpen} onClose={() => setIsPickerOpen(false)} title="Choisir un compte">
-        <AccountPickerPopup onSelect={handleAccountSelected} onClose={() => setIsPickerOpen(false)} />
+        <AccountPickerPopup
+          key={isPickerOpen ? form.account_id : 'closed'}
+          onSelect={handleAccountSelected}
+          onClose={() => setIsPickerOpen(false)}
+          initialCode={form.account_id.trim()}
+        />
       </Popup>
 
       <div className="form-field">
-        <label htmlFor="cjl-date">Date</label>
+        <label htmlFor="cjl-counter-account-id">Contre-partie (optionnel)</label>
+        <div className="form-field-with-hint">
+          <input
+            id="cjl-counter-account-id"
+            type="text"
+            value={form.counter_account_id}
+            onChange={(e) => updateField('counter_account_id', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return
+              e.preventDefault()
+              setIsCounterPickerOpen(true)
+            }}
+            placeholder="4481000000"
+            maxLength={10}
+          />
+          <button type="button" className="button" onClick={() => setIsCounterPickerOpen(true)}>
+            Choisir…
+          </button>
+          {counterAccountLookupStatus === 'found' && (
+            <span className="form-field-hint">{counterAccountName}</span>
+          )}
+          {counterAccountLookupStatus === 'not-found' && (
+            <span className="form-field-hint form-field-hint-error">Ce compte n'existe pas</span>
+          )}
+        </div>
+        {fieldErrors.counter_account_id && (
+          <p className="field-error">{fieldErrors.counter_account_id}</p>
+        )}
+      </div>
+
+      <Popup
+        open={isCounterPickerOpen}
+        onClose={() => setIsCounterPickerOpen(false)}
+        title="Choisir un compte"
+      >
+        <AccountPickerPopup
+          key={isCounterPickerOpen ? form.counter_account_id : 'closed'}
+          onSelect={handleCounterAccountSelected}
+          onClose={() => setIsCounterPickerOpen(false)}
+          initialCode={form.counter_account_id.trim()}
+        />
+      </Popup>
+
+      <div className="form-field">
+        <label htmlFor="cjl-date">Date (MM-JJ)</label>
         <input
           id="cjl-date"
           type="date"
-          value={form.date}
-          onChange={(e) => updateField('date', e.target.value)}
+          min={`${currentYear}-01-01`}
+          max={`${currentYear}-12-31`}
+          value={dayMonthToDateInputValue(form.date)}
+          onChange={(e) => updateField('date', dateInputValueToDayMonth(e.target.value))}
         />
         {fieldErrors.date && <p className="field-error">{fieldErrors.date}</p>}
       </div>
 
-      <div className="form-field">
-        <label htmlFor="cjl-description">Description</label>
-        <input
-          id="cjl-description"
-          type="text"
-          value={form.description}
-          onChange={(e) => updateField('description', e.target.value)}
-        />
-        {fieldErrors.description && <p className="field-error">{fieldErrors.description}</p>}
+      <div className="form-field-row">
+        <div className="form-field">
+          <label htmlFor="cjl-piece">Pièce</label>
+          <input
+            id="cjl-piece"
+            type="text"
+            value={form.piece}
+            onChange={(e) => updateField('piece', e.target.value)}
+          />
+          {fieldErrors.piece && <p className="field-error">{fieldErrors.piece}</p>}
+        </div>
+        <div className="form-field">
+          <label htmlFor="cjl-libele">Libellé</label>
+          <input
+            id="cjl-libele"
+            type="text"
+            value={form.libele}
+            onChange={(e) => updateField('libele', e.target.value)}
+          />
+          {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
+        </div>
       </div>
 
       <div className="form-field">
-        <label>Type</label>
+        <label htmlFor="cjl-nature-achat">Nature d'achat</label>
+        <input
+          id="cjl-nature-achat"
+          type="text"
+          value={form.nature_achat}
+          onChange={(e) => updateField('nature_achat', e.target.value)}
+        />
+        {fieldErrors.nature_achat && <p className="field-error">{fieldErrors.nature_achat}</p>}
+      </div>
+
+      <div className="form-field">
+        <label htmlFor="cjl-code-tva">Code TVA</label>
+        <input
+          id="cjl-code-tva"
+          type="text"
+          value={form.code_tva}
+          onChange={(e) => updateField('code_tva', e.target.value)}
+        />
+        {fieldErrors.code_tva && <p className="field-error">{fieldErrors.code_tva}</p>}
+      </div>
+
+      <div className="form-field">
+        <label>Type{isDoubleEntry ? ' (Partie)' : ''}</label>
         <div className="type-toggle">
           <label className="type-toggle-option">
             <input
@@ -276,6 +467,11 @@ export default function CreateJournalLinePopup({ journalId, onClose, onCreated }
             Crédit
           </label>
         </div>
+        {isDoubleEntry && (
+          <p className="form-field-hint">
+            La contre-partie recevra {form.type === 'debit' ? 'le crédit' : 'le débit'}.
+          </p>
+        )}
       </div>
 
       <div className="form-field">

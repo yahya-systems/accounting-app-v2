@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { getAccount, getAccountJournalLines, getJournals, updateAccount } from '../../../api/client'
+import {
+  getAccount,
+  getAccountBalance,
+  getAccountJournalLines,
+  getJournals,
+  updateAccount,
+} from '../../../api/client'
 import { formatAmount } from '../../../utils/format'
 import Table from '../../../components/Table'
 import Popup from '../../../components/Popup'
@@ -33,6 +39,11 @@ const COLUMNS = [
     sortable: true,
     width: 24,
   },
+  {
+    key: 'description',
+    label: 'Description',
+    sortable: true,
+  },
 ]
 
 const TYPE_OPTIONS = [
@@ -63,6 +74,10 @@ export default function AccountDetail() {
   const [linesRefreshKey, setLinesRefreshKey] = useState(0)
 
   const [selectedLineId, setSelectedLineId] = useState(null)
+
+  const [balance, setBalance] = useState(null)
+  const [balanceStatus, setBalanceStatus] = useState('loading') // 'loading' | 'ready' | 'error'
+  const [balanceError, setBalanceError] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -121,6 +136,33 @@ export default function AccountDetail() {
         if (cancelled) return
         setLinesError(err.message)
         setLinesStatus('error')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, appliedParams, linesRefreshKey])
+
+  useEffect(() => {
+    let cancelled = false
+
+    setBalanceStatus('loading')
+    setBalanceError(null)
+
+    const balanceParams = {}
+    if (appliedParams.from) balanceParams.from = appliedParams.from
+    if (appliedParams.to) balanceParams.to = appliedParams.to
+
+    getAccountBalance(id, balanceParams)
+      .then((data) => {
+        if (cancelled) return
+        setBalance(data)
+        setBalanceStatus('ready')
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setBalanceError(err.message)
+        setBalanceStatus('error')
       })
 
     return () => {
@@ -245,6 +287,42 @@ export default function AccountDetail() {
             emptyMessage="Aucune écriture."
             onRowClick={(line) => setSelectedLineId(line.id)}
           />
+        )}
+      </div>
+
+      <div className="account-detail-balance">
+        {balanceStatus === 'loading' && <p className="muted">Chargement du solde…</p>}
+        {balanceStatus === 'error' && (
+          <p className="error">Échec du chargement du solde : {balanceError}</p>
+        )}
+        {balanceStatus === 'ready' && balance && (
+          <>
+            <p className="account-detail-balance-label">
+              {appliedParams.from || appliedParams.to
+                ? `Total du ${appliedParams.from || '…'} au ${appliedParams.to || '…'} (aucun autre filtre n'est pris en compte)`
+                : 'Total'}
+            </p>
+            <div className="account-detail-balance-values">
+              <div className="account-detail-balance-item">
+                <span className="account-detail-balance-item-label">Débit total</span>
+                <span className="account-detail-balance-item-value">
+                  {formatAmount(balance.total_debit)}
+                </span>
+              </div>
+              <div className="account-detail-balance-item">
+                <span className="account-detail-balance-item-label">Crédit total</span>
+                <span className="account-detail-balance-item-value">
+                  {formatAmount(balance.total_credit)}
+                </span>
+              </div>
+              <div className="account-detail-balance-item">
+                <span className="account-detail-balance-item-label">Solde</span>
+                <span className="account-detail-balance-item-value">
+                  {formatAmount(balance.balance)}
+                </span>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

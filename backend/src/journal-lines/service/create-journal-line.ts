@@ -1,5 +1,6 @@
 import { AppError } from "@middleware/error/app-error";
-import { query } from "@db/pool";
+import { withTransaction } from "@db/pool";
+import type { TransactionQuery } from "@db/pool";
 import type { z } from "zod";
 import type { createJournalLineBodySchema } from "@journal-lines/schema";
 
@@ -15,10 +16,11 @@ export type JournalLine = {
   credit_amount: string | null;
 };
 
-export async function createJournalLine(
+async function insertJournalLine(
+  txQuery: TransactionQuery,
   input: CreateJournalLineInput
 ): Promise<JournalLine> {
-  const accountExists = await query<{ id: string }>(
+  const accountExists = await txQuery<{ id: string }>(
     `SELECT id FROM accounts WHERE id = $1`,
     [input.account_id]
   );
@@ -26,7 +28,7 @@ export async function createJournalLine(
     throw new AppError(404, `No account found with id "${input.account_id}"`);
   }
 
-  const journalExists = await query<{ id: number }>(
+  const journalExists = await txQuery<{ id: number }>(
     `SELECT id FROM journals WHERE id = $1`,
     [input.journal_id]
   );
@@ -34,7 +36,7 @@ export async function createJournalLine(
     throw new AppError(404, `No journal found with id "${input.journal_id}"`);
   }
 
-  const rows = await query<JournalLine>(
+  const rows = await txQuery<JournalLine>(
     `INSERT INTO journal_lines (journal_id, account_id, date, description, debit_amount, credit_amount)
      VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING id, journal_id, account_id, date, description, debit_amount, credit_amount`,
@@ -54,4 +56,20 @@ export async function createJournalLine(
   }
 
   return created;
+}
+
+// Creates multiple journal lines atomically: all lines are inserted within
+// a single transaction, and if any line fails validation (e.g. unknown
+// account/journal), the entire batch is rolled back and none are inserted.
+// Each line is otherwise independent — no shared state between lines.
+export async function createJournalLines(
+  inputs: CreateJournalLineInput[]
+): Promise<JournalLine[]> {
+  return withTransaction(async (txQuery) => {
+    const created: JournalLine[] = [];
+    for (const input of inputs) {
+      created.push(await insertJournalLine(txQuery, input));
+    }
+    return created;
+  });
 }

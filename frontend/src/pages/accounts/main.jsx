@@ -26,8 +26,8 @@ const FILTER_SCHEMA = [
 ]
 
 const COLUMNS = [
-  { key: 'name', label: 'Nom', sortable: true },
   { key: 'id', label: 'Identifiant', sortable: true, width: 14 },
+  { key: 'name', label: 'Nom', sortable: true },
   {
     key: 'total_debit',
     label: 'Débit',
