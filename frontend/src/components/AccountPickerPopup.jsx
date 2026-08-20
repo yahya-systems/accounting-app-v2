@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { getAccounts } from '../api/client'
+import { getAccounts } from '@api/client'
 import Table from './Table'
 import Popup from './Popup'
-import CreateAccountPopup from '../pages/accounts/CreateAccountPopup'
+import CreateAccountPopup from '@pages/accounts/CreateAccountPopup'
 import './AccountPickerPopup.css'
 
 const COLUMNS = [
@@ -100,8 +100,12 @@ export default function AccountPickerPopup({ onSelect, onClose, initialCode = ''
             data={accounts}
             emptyMessage="Aucun compte, créer un nouveau."
             onRowClick={(account) => {
-              onSelect?.(account)
+              // Close first: the parent's onSelect handler updates state that
+              // this popup's `key` is derived from (form.account_id in
+              // CreateJournalLinePopup), which would otherwise remount this
+              // component mid-callback instead of letting it close.
               onClose?.()
+              onSelect?.(account)
             }}
           />
         )}

@@ -1,19 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { createJournalLine, getAccount, getJournals } from '../api/client'
-import { dayMonthToDateInputValue, dateInputValueToDayMonth } from '../utils/format'
+import { createLineDraft, getAccount, getJournals } from '@api/client'
 import Popup from './Popup'
 import AccountPickerPopup from './AccountPickerPopup'
 import './CreateJournalLinePopup.css'
-
-const currentYear = new Date().getFullYear()
 
 function makeEmptyForm(journalId) {
   return {
     journal_id: journalId ? String(journalId) : '',
     account_id: '',
     counter_account_id: '',
-    date: '',
-    piece: '',
     libele: '',
     nature_achat: '',
     code_tva: '',
@@ -40,13 +35,15 @@ function isBanqueCaisse(journalType) {
 }
 
 // Concatenates the description fields into the single `description` string
-// the API expects. For Achats/Ventes journals: "[PIECE] — [LIBELE] — [NATURE
-// D'ACHAT] — [CODE TVA]"; for other journal types, only Libellé is shown so
-// the description is just "[LIBELE]". Empty segments are dropped rather than
-// leaving a bare dash, so partially-filled forms don't produce " — Foo —  — ".
+// the API expects. Libellé is included for every journal type; for
+// Achats/Ventes journals, Nature d'achat + Code TVA are appended:
+// "[LIBELE] — [NATURE D'ACHAT] — [CODE TVA]" vs. just "[LIBELE]" otherwise.
+// (Pièce was dropped from this form — it's now a transaction-level concern,
+// see CreateTransactionPopup — so it no longer participates here.) Empty
+// segments are dropped rather than leaving a bare dash.
 function buildDescription(form, journalType) {
   const parts = isAchatVente(journalType)
-    ? [form.piece, form.libele, form.nature_achat, form.code_tva]
+    ? [form.libele, form.nature_achat, form.code_tva]
     : [form.libele]
   return parts
     .map((part) => part.trim())
@@ -84,11 +81,6 @@ function clientValidate(form, accountLookupStatus, counterAccountLookupStatus, r
     }
   }
 
-  if (!form.date) {
-    errors.date = 'date est requise'
-  } else if (!/^\d{2}-\d{2}$/.test(form.date)) {
-    errors.date = 'date must be in MM-DD format'
-  }
   if (!form.libele.trim()) errors.libele = 'libellé est requis'
 
   const amountNum = Number(form.amount)
@@ -160,7 +152,7 @@ function useAccountLookup(accountId) {
 //   one request — one for each account, same date/description, one debit and one credit
 //   (the amount is shared; Type picks which side "Partie" gets, "Contre-partie" gets the
 //   opposite). The debit line is always sent first in the array.
-export default function CreateJournalLinePopup({ journalId, journalType, onClose, onCreated }) {
+export default function CreateJournalLinePopup({ transactionId, journalId, journalType, onClose, onCreated }) {
   const requireJournalSelect = !journalId
 
   const [form, setForm] = useState(() => makeEmptyForm(journalId))
@@ -309,15 +301,11 @@ export default function CreateJournalLinePopup({ journalId, journalType, onClose
     setSubmitting(true)
 
     try {
-      const journal_id = Number(requireJournalSelect ? form.journal_id : journalId)
-      const date = form.date
       const description = buildDescription(form, selectedJournalType)
       const amount = Number(form.amount)
 
       const partieLine = {
-        journal_id,
         account_id: form.account_id.trim(),
-        date,
         description,
         debit_amount: form.type === 'debit' ? amount : null,
         credit_amount: form.type === 'credit' ? amount : null,
@@ -327,9 +315,7 @@ export default function CreateJournalLinePopup({ journalId, journalType, onClose
 
       if (isDoubleEntry) {
         const contrePartieLine = {
-          journal_id,
           account_id: form.counter_account_id.trim(),
-          date,
           description,
           debit_amount: form.type === 'credit' ? amount : null,
           credit_amount: form.type === 'debit' ? amount : null,
@@ -340,8 +326,17 @@ export default function CreateJournalLinePopup({ journalId, journalType, onClose
       // Debit line always first.
       lines.sort((a, b) => (b.debit_amount ?? 0) - (a.debit_amount ?? 0))
 
-      await createJournalLine(lines)
-      onCreated?.()
+      // Line-drafts are added one at a time — POST /transactions/:id/lines
+      // takes a single line body, unlike the old flat /journal-lines POST
+      // which accepted an array. Sequential so a mid-way failure (e.g. the
+      // second, counter-partie line) doesn't leave ambiguous partial state.
+      const createdLines = []
+      for (const line of lines) {
+        const created = await createLineDraft(transactionId, line)
+        createdLines.push(created)
+      }
+
+      onCreated?.(createdLines)
       onClose?.()
     } catch (err) {
       if (Array.isArray(err.details)) {
@@ -468,44 +463,21 @@ export default function CreateJournalLinePopup({ journalId, journalType, onClose
         />
       </Popup>
 
-      <div className="form-field">
-        <label htmlFor="cjl-date">Date (MM-JJ)</label>
-        <input
-          id="cjl-date"
-          type="date"
-          min={`${currentYear}-01-01`}
-          max={`${currentYear}-12-31`}
-          value={dayMonthToDateInputValue(form.date)}
-          onChange={(e) => updateField('date', dateInputValueToDayMonth(e.target.value))}
-        />
-        {fieldErrors.date && <p className="field-error">{fieldErrors.date}</p>}
+      <div className="form-field-row">
+        <div className="form-field">
+          <label htmlFor="cjl-libele">Libellé</label>
+          <input
+            id="cjl-libele"
+            type="text"
+            value={form.libele}
+            onChange={(e) => updateField('libele', e.target.value)}
+          />
+          {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
+        </div>
       </div>
 
-      {achatVente ? (
+      {achatVente && (
         <>
-          <div className="form-field-row">
-            <div className="form-field">
-              <label htmlFor="cjl-piece">Pièce</label>
-              <input
-                id="cjl-piece"
-                type="text"
-                value={form.piece}
-                onChange={(e) => updateField('piece', e.target.value)}
-              />
-              {fieldErrors.piece && <p className="field-error">{fieldErrors.piece}</p>}
-            </div>
-            <div className="form-field">
-              <label htmlFor="cjl-libele">Libellé</label>
-              <input
-                id="cjl-libele"
-                type="text"
-                value={form.libele}
-                onChange={(e) => updateField('libele', e.target.value)}
-              />
-              {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
-            </div>
-          </div>
-
           <div className="form-field">
             <label htmlFor="cjl-nature-achat">Nature d'achat</label>
             <input
@@ -528,17 +500,6 @@ export default function CreateJournalLinePopup({ journalId, journalType, onClose
             {fieldErrors.code_tva && <p className="field-error">{fieldErrors.code_tva}</p>}
           </div>
         </>
-      ) : (
-        <div className="form-field">
-          <label htmlFor="cjl-libele">Libellé</label>
-          <input
-            id="cjl-libele"
-            type="text"
-            value={form.libele}
-            onChange={(e) => updateField('libele', e.target.value)}
-          />
-          {fieldErrors.libele && <p className="field-error">{fieldErrors.libele}</p>}
-        </div>
       )}
 
       <div className="form-field">

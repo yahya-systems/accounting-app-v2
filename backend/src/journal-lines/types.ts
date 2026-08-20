@@ -6,6 +6,7 @@ export type JournalLine = {
   credit_amount: string | null;
   account: { id: string; name: string };
   journal: { id: number; name: string };
+  transaction: { id: number; name: string };
 };
 
 export type ListJournalLinesFilters = {

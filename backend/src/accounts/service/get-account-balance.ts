@@ -23,17 +23,17 @@ export async function getAccountBalance(
     throw new AppError(404, `No account found with id "${accountId}"`);
   }
 
-  const conditions: string[] = ["account_id = $1"];
+  const conditions: string[] = ["jl.account_id = $1"];
   const params: unknown[] = [accountId];
 
   if (filters.from !== undefined) {
     params.push(filters.from);
-    conditions.push(`date >= $${params.length}`);
+    conditions.push(`t.date >= $${params.length}`);
   }
 
   if (filters.to !== undefined) {
     params.push(filters.to);
-    conditions.push(`date <= $${params.length}`);
+    conditions.push(`t.date <= $${params.length}`);
   }
 
   const whereClause = `WHERE ${conditions.join(" AND ")}`;
@@ -45,11 +45,12 @@ export async function getAccountBalance(
     line_count: string;
   }>(
     `SELECT
-       COALESCE(SUM(debit_amount), 0) - COALESCE(SUM(credit_amount), 0) AS balance,
-       COALESCE(SUM(debit_amount), 0) AS total_debit,
-       COALESCE(SUM(credit_amount), 0) AS total_credit,
+       COALESCE(SUM(jl.debit_amount), 0) - COALESCE(SUM(jl.credit_amount), 0) AS balance,
+       COALESCE(SUM(jl.debit_amount), 0) AS total_debit,
+       COALESCE(SUM(jl.credit_amount), 0) AS total_credit,
        COUNT(*) AS line_count
-     FROM journal_lines
+     FROM journal_lines jl
+     JOIN transactions t ON t.id = jl.transaction_id
      ${whereClause}`,
     params
   );

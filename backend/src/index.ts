@@ -6,6 +6,7 @@ import { query } from "./db/pool";
 import { accountsRouter } from "@accounts/route";
 import { journalsRouter } from "@journals/route";
 import { journalLinesRouter } from "@journal-lines/route";
+import { transactionsRouter } from "@transactions/route";
 import { errorHandler } from "@middleware/error/error-handler";
 
 const app = express();
@@ -24,6 +25,7 @@ if (NODE_ENV !== "production") {
 app.use("/api/accounts", accountsRouter);
 app.use("/api/journals", journalsRouter);
 app.use("/api/journal-lines", journalLinesRouter);
+app.use("/api/transactions", transactionsRouter);
 
 // pcg-reference is a single, standalone lookup — not a full CRUD resource,
 // so it's handled inline here rather than given its own feature folder.

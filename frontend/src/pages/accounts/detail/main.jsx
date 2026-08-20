@@ -6,14 +6,14 @@ import {
   getAccountJournalLines,
   getJournals,
   updateAccount,
-} from '../../../api/client'
-import { formatAmount } from '../../../utils/format'
-import Table from '../../../components/Table'
-import Popup from '../../../components/Popup'
-import FilterBar from '../../../components/FilterBar'
-import JournalLineDetailPopup from '../../../components/JournalLineDetailPopup'
+} from '@api/client'
+import { formatAmount } from '@utils/format'
+import Table from '@components/Table'
+import Popup from '@components/Popup'
+import FilterBar from '@components/FilterBar'
+import JournalLineDetailPopup from '@components/JournalLineDetailPopup'
 import EditAccountPopup from './EditAccountPopup'
-import PencilIcon from '../../../components/PencilIcon'
+import PencilIcon from '@components/PencilIcon'
 import './AccountDetail.css'
 
 const COLUMNS = [

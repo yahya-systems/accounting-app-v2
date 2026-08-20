@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { updateJournal } from '../../../api/client'
-import { JOURNAL_TYPES } from '../../home/CreateJournalPopup'
+import { updateJournal } from '@api/client'
+import { JOURNAL_TYPES } from '@pages/home/CreateJournalPopup'
 import './EditJournalPopup.css'
 
 function fieldFromPath(path) {

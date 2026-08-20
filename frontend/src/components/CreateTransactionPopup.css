@@ -1,0 +1,109 @@
+/* Rendered inside <Popup panelClassName="create-transaction-panel"> with no
+   title/onClose — this component owns its own header (including the close
+   button, which opens the save-draft/delete confirmation instead of closing
+   directly) and buttons, so it needs a wider panel than the default 480px
+   popup cap. */
+.create-transaction-panel {
+  max-width: 860px;
+}
+
+.create-transaction-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.create-transaction-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.create-transaction-header h2 {
+  font-size: 16px;
+}
+
+.create-transaction-close {
+  font-size: 20px;
+}
+
+.create-transaction-fields {
+  display: flex;
+  gap: 16px;
+}
+
+.create-transaction-fields .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.create-transaction-fields .form-field label {
+  font-size: 13px;
+  color: var(--gray-700);
+}
+
+.create-transaction-fields .form-field input,
+.create-transaction-fields .form-field select {
+  padding: 8px;
+  border: 1px solid var(--gray-300);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--white);
+}
+
+.create-transaction-fields .form-field input:focus,
+.create-transaction-fields .form-field select:focus {
+  outline: none;
+  border-color: var(--gray-900);
+}
+
+.create-transaction-lines-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.create-transaction-lines-header h3 {
+  font-size: 14px;
+  color: var(--gray-700);
+}
+
+.create-transaction-grid {
+  min-height: 160px;
+}
+
+.create-transaction-delete-line {
+  width: 28px;
+  height: 28px;
+  color: var(--gray-500);
+}
+
+.create-transaction-delete-line:hover {
+  color: var(--red-600);
+}
+
+.create-transaction-totals {
+  display: flex;
+  gap: 24px;
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-300);
+}
+
+.create-transaction-totals-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.create-transaction-totals-label {
+  font-size: 12px;
+  color: var(--gray-500);
+}
+
+.create-transaction-totals-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gray-900);
+}

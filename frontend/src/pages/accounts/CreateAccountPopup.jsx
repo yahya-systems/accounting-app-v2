@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createAccount, getPcgReference } from '../../api/client'
+import { createAccount, getPcgReference } from '@api/client'
 import './CreateAccountPopup.css'
 
 const EMPTY_FORM = {

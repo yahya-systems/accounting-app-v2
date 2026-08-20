@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createJournal } from '../../api/client'
+import { createJournal } from '@api/client'
 import './CreateJournalPopup.css'
 
 export const JOURNAL_TYPES = ['Caisse', 'Banque', 'Achats', 'Ventes', 'Opérations Diverses', 'Autre']

@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getAllJournalLines } from '../../api/client'
-import { formatAmount } from '../../utils/format'
-import Table from '../../components/Table'
-import Popup from '../../components/Popup'
-import FilterBar from '../../components/FilterBar'
-import JournalLineDetailPopup from '../../components/JournalLineDetailPopup'
-import CreateJournalLinePopup from '../../components/CreateJournalLinePopup'
+import { getAllJournalLines } from '@api/client'
+import { formatAmount } from '@utils/format'
+import Table from '@components/Table'
+import Popup from '@components/Popup'
+import FilterBar from '@components/FilterBar'
+import JournalLineDetailPopup from '@components/JournalLineDetailPopup'
+import CreateTransactionPopup from '@components/CreateTransactionPopup'
 import './JournalLines.css'
 
 const FILTER_SCHEMA = [
@@ -141,9 +141,13 @@ export default function JournalLines() {
       <Popup
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        title="Créer une écriture"
+        panelClassName="create-transaction-panel"
       >
-        <CreateJournalLinePopup onClose={() => setIsCreateOpen(false)} onCreated={handleLineCreated} />
+        <CreateTransactionPopup
+          onClose={() => setIsCreateOpen(false)}
+          onSaved={handleLineCreated}
+          onDeleted={handleLineCreated}
+        />
       </Popup>
 
       <Popup

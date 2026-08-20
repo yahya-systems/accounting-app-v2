@@ -25,6 +25,9 @@
       ],
       "@journal-lines/*": [
         "src/journal-lines/*"
+      ],
+      "@transactions/*": [
+        "src/transactions/*"
       ]
     },
     "rootDir": "src",

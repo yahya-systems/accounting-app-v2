@@ -9,12 +9,12 @@ export async function listJournalLines(
 
   if (filters.from !== undefined) {
     params.push(filters.from);
-    conditions.push(`jl.date >= $${params.length}`);
+    conditions.push(`t.date >= $${params.length}`);
   }
 
   if (filters.to !== undefined) {
     params.push(filters.to);
-    conditions.push(`jl.date <= $${params.length}`);
+    conditions.push(`t.date <= $${params.length}`);
   }
 
   if (filters.account_id !== undefined) {
@@ -24,7 +24,7 @@ export async function listJournalLines(
 
   if (filters.journal_id !== undefined) {
     params.push(filters.journal_id);
-    conditions.push(`jl.journal_id = $${params.length}`);
+    conditions.push(`t.journal_id = $${params.length}`);
   }
 
   if (filters.type === "debit") {
@@ -51,22 +51,27 @@ export async function listJournalLines(
     account_name: string;
     journal_id: number;
     journal_name: string;
+    transaction_id: number;
+    transaction_name: string;
   }>(
     `SELECT
        jl.id,
-       jl.date,
+       t.date,
        jl.description,
        jl.debit_amount,
        jl.credit_amount,
        a.id AS account_id,
        a.name AS account_name,
        j.id AS journal_id,
-       j.name AS journal_name
+       j.name AS journal_name,
+       t.id AS transaction_id,
+       t.name AS transaction_name
      FROM journal_lines jl
      JOIN accounts a ON a.id = jl.account_id
-     JOIN journals j ON j.id = jl.journal_id
+     JOIN transactions t ON t.id = jl.transaction_id
+     JOIN journals j ON j.id = t.journal_id
      ${whereClause}
-     ORDER BY jl.date, jl.id`,
+     ORDER BY t.date, jl.id`,
     params
   );
 
@@ -78,5 +83,6 @@ export async function listJournalLines(
     credit_amount: row.credit_amount,
     account: { id: row.account_id, name: row.account_name },
     journal: { id: row.journal_id, name: row.journal_name },
+    transaction: { id: row.transaction_id, name: row.transaction_name },
   }));
 }

@@ -1,17 +1,46 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getJournals, getJournalBalance, getJournalLines, updateJournal } from '../../api/client'
-import { formatAmount } from '../../utils/format'
-import Table from '../../components/Table'
-import Popup from '../../components/Popup'
-import FilterBar from '../../components/FilterBar'
-import JournalLineDetailPopup from '../../components/JournalLineDetailPopup'
-import CreateJournalLinePopup from '../../components/CreateJournalLinePopup'
-import EditJournalPopup from '../journals/detail/EditJournalPopup'
+import { AgGridReact } from 'ag-grid-react'
+import { themeBalham } from 'ag-grid-community'
+import {
+  getJournals,
+  getJournalBalance,
+  getJournalLines,
+  updateJournal,
+} from '@api/client'
+import { formatAmount } from '@utils/format'
+import Popup from '@components/Popup'
+import FilterBar from '@components/FilterBar'
+import JournalLineDetailPopup from '@components/JournalLineDetailPopup'
+import CreateTransactionPopup from '@components/CreateTransactionPopup'
+import EditJournalPopup from '@pages/journals/detail/EditJournalPopup'
 import CreateJournalPopup from './CreateJournalPopup'
-import PencilIcon from '../../components/PencilIcon'
+import PencilIcon from '@components/PencilIcon'
 import '../journals/detail/JournalDetail.css'
 import './Home.css'
+
+// Cell renderer for the "Numéro PCG" / "Compte" columns: links straight to
+// the account's detail page instead of falling through to the row click
+// (which opens the line detail popup). stopPropagation is required so the
+// row's onRowClicked doesn't also fire and open that popup underneath.
+// (Read-only now — the outer table's inline "Modifier" edit mode was
+// removed since it PATCHed journal_lines directly, an endpoint the
+// transactions refactor deleted; posted lines aren't editable via the API
+// at all yet.)
+function AccountLinkCell(params) {
+  const { value, data } = params
+  const accountId = data.account?.id
+  if (!accountId) return value ?? '—'
+  return (
+    <Link
+      to={`/accounts/${accountId}`}
+      className="journal-detail-account-link-cell"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {value ?? '—'}
+    </Link>
+  )
+}
 
 const FILTER_SCHEMA = [
   { key: 'from', label: 'Du', type: 'date', param: 'from' },
@@ -30,38 +59,72 @@ const FILTER_SCHEMA = [
   { key: 'description', label: 'Description', type: 'text', param: 'description', placeholder: 'Recherche' },
 ]
 
-const COLUMNS = [
-  {
-    key: 'account_pcg_code',
-    label: 'Numéro PCG',
-    sortable: true,
-    width: 16,
-  },
-  {
-    key: 'account_name',
-    label: 'Compte',
-    sortable: true,
-    width: 24,
-  },
-  {
-    key: 'debit_amount',
-    label: 'Débit',
-    sortable: true,
-    align: 'right',
-    width: 16,
-    render: formatAmount,
-  },
-  {
-    key: 'credit_amount',
-    label: 'Crédit',
-    sortable: true,
-    align: 'right',
-    width: 16,
-    render: formatAmount,
-  },
-  { key: 'date', label: 'Date', sortable: true, width: 14, render: (v) => v?.slice(0, 10) },
-  { key: 'description', label: 'Description', sortable: true },
-]
+const SORTING_ORDER = ['asc', 'desc', null]
+
+// Read-only column set — see note above AccountLinkCell.
+function buildColumnDefs() {
+  return [
+    {
+      field: 'date',
+      headerName: 'Date',
+      sortable: true,
+      sortingOrder: SORTING_ORDER,
+      valueFormatter: (params) => params.value?.slice(0, 10) ?? '',
+      editable: false,
+      flex: 1.1,
+    },
+    {
+      field: 'account_pcg_code',
+      headerName: 'Numéro PCG',
+      sortable: true,
+      sortingOrder: SORTING_ORDER,
+      editable: false,
+      cellRenderer: AccountLinkCell,
+      flex: 1.3,
+    },
+    {
+      field: 'account_name',
+      headerName: 'Compte',
+      sortable: true,
+      sortingOrder: SORTING_ORDER,
+      editable: false,
+      cellRenderer: AccountLinkCell,
+      flex: 1.8,
+    },
+    {
+      field: 'debit_amount',
+      headerName: 'Débit',
+      sortable: false,
+      type: 'rightAligned',
+      cellDataType: 'number',
+      valueFormatter: (params) => formatAmount(params.value),
+      editable: false,
+      flex: 1.3,
+    },
+    {
+      field: 'credit_amount',
+      headerName: 'Crédit',
+      sortable: false,
+      type: 'rightAligned',
+      cellDataType: 'number',
+      valueFormatter: (params) => formatAmount(params.value),
+      editable: false,
+      flex: 1.3,
+    },
+    {
+      field: 'description',
+      headerName: 'Description',
+      sortable: false,
+      editable: false,
+      flex: 2.4,
+    },
+  ]
+}
+
+const DEFAULT_COL_DEF = {
+  editable: false,
+  resizable: true,
+}
 
 export default function Home() {
   const [journals, setJournals] = useState([])
@@ -87,6 +150,11 @@ export default function Home() {
 
   const [isCreateLineOpen, setIsCreateLineOpen] = useState(false)
   const [selectedLineId, setSelectedLineId] = useState(null)
+  // Holds CreateTransactionPopup's requestClose, so Esc/overlay-click
+  // (which Popup.jsx wires straight to its onClose prop) trigger the same
+  // save-draft/delete confirmation as the in-popup × button, instead of
+  // closing outright.
+  const createTransactionCloseRequest = useRef(null)
 
   const [balance, setBalance] = useState(null)
   const [balanceStatus, setBalanceStatus] = useState('idle') // 'idle' | 'loading' | 'ready' | 'error'
@@ -177,6 +245,8 @@ export default function Home() {
     account_name: line.account?.name ?? null,
   }))
 
+  const columnDefs = useMemo(() => buildColumnDefs(), [])
+
   function handleSelectJournal(journal) {
     setSelectedJournal(journal)
     setAppliedParams({})
@@ -196,6 +266,11 @@ export default function Home() {
 
   function handleLineUpdated() {
     setLinesRefreshKey((k) => k + 1)
+  }
+
+  function closeCreateLinePopup() {
+    createTransactionCloseRequest.current = null
+    setIsCreateLineOpen(false)
   }
 
   async function handleConfirmDeactivate() {
@@ -340,12 +415,17 @@ export default function Home() {
                 <p className="error">Échec du chargement des écritures : {linesError}</p>
               )}
               {linesStatus === 'ready' && (
-                <Table
-                  columns={COLUMNS}
-                  data={rows}
-                  emptyMessage="Aucune écriture."
-                  onRowClick={(line) => setSelectedLineId(line.id)}
-                />
+                <div className="journal-detail-grid">
+                  <AgGridReact
+                    theme={themeBalham}
+                    columnDefs={columnDefs}
+                    defaultColDef={DEFAULT_COL_DEF}
+                    rowData={rows}
+                    getRowId={(params) => String(params.data.id)}
+                    onRowClicked={(event) => setSelectedLineId(event.data.id)}
+                    overlayNoRowsTemplate="Aucune écriture."
+                  />
+                </div>
               )}
             </div>
 
@@ -412,14 +492,17 @@ export default function Home() {
       {selectedJournal && (
         <Popup
           open={isCreateLineOpen}
-          onClose={() => setIsCreateLineOpen(false)}
-          title="Créer une écriture"
+          onClose={() => (createTransactionCloseRequest.current ?? closeCreateLinePopup)()}
+          panelClassName="create-transaction-panel"
         >
-          <CreateJournalLinePopup
+          <CreateTransactionPopup
             journalId={selectedJournal.id}
-            journalType={selectedJournal.type}
-            onClose={() => setIsCreateLineOpen(false)}
-            onCreated={handleLineCreated}
+            onClose={closeCreateLinePopup}
+            onSaved={handleLineCreated}
+            onDeleted={handleLineCreated}
+            onRequestClose={(fn) => {
+              createTransactionCloseRequest.current = fn
+            }}
           />
         </Popup>
       )}
@@ -462,6 +545,7 @@ export default function Home() {
           />
         )}
       </Popup>
+
     </div>
   )
 }

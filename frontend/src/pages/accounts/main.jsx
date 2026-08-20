@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getAccounts, getAccountBalance } from '../../api/client'
-import { formatAmount } from '../../utils/format'
-import Table from '../../components/Table'
-import Popup from '../../components/Popup'
-import FilterBar from '../../components/FilterBar'
+import { AgGridReact } from 'ag-grid-react'
+import { themeBalham } from 'ag-grid-community'
+import { getAccounts, getAccountBalance } from '@api/client'
+import { formatAmount } from '@utils/format'
+import Popup from '@components/Popup'
+import FilterBar from '@components/FilterBar'
 import CreateAccountPopup from './CreateAccountPopup'
+import '../journals/detail/JournalDetail.css'
 import './Accounts.css'
 
 const FILTER_SCHEMA = [
@@ -25,41 +27,52 @@ const FILTER_SCHEMA = [
   { key: 'createdBefore', label: 'Créé avant', type: 'date', param: 'created_before' },
 ]
 
-const COLUMNS = [
-  { key: 'id', label: 'Identifiant', sortable: true, width: 14 },
-  { key: 'name', label: 'Nom', sortable: true },
+const SORTING_ORDER = ['asc', 'desc', null]
+
+const COLUMN_DEFS = [
+  { field: 'id', headerName: 'Identifiant', sortable: true, sortingOrder: SORTING_ORDER, flex: 1 },
+  { field: 'name', headerName: 'Nom', sortable: true, sortingOrder: SORTING_ORDER, flex: 2 },
   {
-    key: 'total_debit',
-    label: 'Débit',
+    field: 'total_debit',
+    headerName: 'Débit',
     sortable: true,
-    align: 'right',
-    width: 14,
-    render: formatAmount,
+    sortingOrder: SORTING_ORDER,
+    type: 'rightAligned',
+    valueFormatter: (params) => formatAmount(params.value),
+    flex: 1,
   },
   {
-    key: 'total_credit',
-    label: 'Crédit',
+    field: 'total_credit',
+    headerName: 'Crédit',
     sortable: true,
-    align: 'right',
-    width: 14,
-    render: formatAmount,
+    sortingOrder: SORTING_ORDER,
+    type: 'rightAligned',
+    valueFormatter: (params) => formatAmount(params.value),
+    flex: 1,
   },
   {
-    key: 'balance',
-    label: 'Solde',
+    field: 'balance',
+    headerName: 'Solde',
     sortable: true,
-    align: 'right',
-    width: 14,
-    render: formatAmount,
+    sortingOrder: SORTING_ORDER,
+    type: 'rightAligned',
+    valueFormatter: (params) => formatAmount(params.value),
+    flex: 1,
   },
   {
-    key: 'is_active',
-    label: 'Statut',
+    field: 'is_active',
+    headerName: 'Statut',
     sortable: true,
-    width: 10,
-    render: (isActive) => (isActive ? 'Actif' : 'Inactif'),
+    sortingOrder: SORTING_ORDER,
+    valueFormatter: (params) => (params.value ? 'Actif' : 'Inactif'),
+    flex: 0.7,
   },
 ]
+
+const DEFAULT_COL_DEF = {
+  editable: false,
+  resizable: true,
+}
 
 export default function Accounts() {
   const navigate = useNavigate()
@@ -155,12 +168,17 @@ export default function Accounts() {
         {status === 'loading' && <p className="muted">Chargement…</p>}
         {status === 'error' && <p className="error">Échec du chargement des comptes : {error}</p>}
         {status === 'ready' && (
-          <Table
-            columns={COLUMNS}
-            data={rows}
-            emptyMessage="Aucun compte."
-            onRowClick={(account) => navigate(`/accounts/${account.id}`)}
-          />
+          <div className="journal-detail-grid">
+            <AgGridReact
+              theme={themeBalham}
+              columnDefs={COLUMN_DEFS}
+              defaultColDef={DEFAULT_COL_DEF}
+              rowData={rows}
+              getRowId={(params) => String(params.data.id)}
+              onRowClicked={(event) => navigate(`/accounts/${event.data.id}`)}
+              overlayNoRowsTemplate="Aucun compte."
+            />
+          </div>
         )}
       </div>
 

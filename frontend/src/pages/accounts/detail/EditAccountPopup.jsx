@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { updateAccount } from '../../../api/client'
+import { updateAccount } from '@api/client'
 import './EditAccountPopup.css'
 
 // Metadata rows carry an `original` flag so we know, on removal, whether we
